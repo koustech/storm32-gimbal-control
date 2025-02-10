@@ -84,41 +84,238 @@ def get_version_str(serial_port: serial.Serial):
 
     return models.VersionStringResponse(version, name, board)
 
-# Genel bir ayar fonksiyonu (Pitch, Roll, Yaw için kullanılabilir)
-def set_axis(serial_port, degrees, command_id):
-    # Dereceyi uint16_t değere dönüştür
-    value = utils.degrees_to_value(degrees)
-
-    # CMD_SET Komut Yapısı
-    header = [0xFA, 0x02]  # Header: 0xFA 0x02
-    command = [command_id]  # Command ID: CMD_SETPITCH (#10), CMD_SETROLL (#11), CMD_SETYAW (#12)
-
-    # Data (uint16_t, low-byte ve high-byte)
-    data_low_byte = value & 0xFF  # En düşük 8 bit
-    data_high_byte = (value >> 8) & 0xFF  # En yüksek 8 bit
-    data = [data_low_byte, data_high_byte]
-
-    # CRC Hesaplama
+def get_parameter(serial_port: serial.Serial, param_id: int) -> int:
+    if not (0 <= param_id <= 65535):
+        raise ValueError("Parameter ID must be between 0 and 65535.")
+    
+    header = [constants.STARTSIGNS.INCOMING, 0x02]
+    command = [constants.CMD_GETPARAMETER]
+    
+    param_low_byte = param_id & 0xFF
+    param_high_byte = (param_id >> 8) & 0xFF
+    data = [param_low_byte, param_high_byte]
+    
     packet = header + command + data
+    
+    crc = utils.calculate_crc(packet)
+    crc_low_byte = crc & 0xFF
+    crc_high_byte = (crc >> 8) & 0xFF
+    
+    final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
+    serial_port.write(final_packet)
+    
+    # ------ READ ------
+    response = serial_port.read(9)
+
+    if len(response) != 9:
+        raise ValueError("Incomplete response received!")
+
+    start_sign = response[0]
+    packet_length = response[1]
+    command = response[2]
+
+    if start_sign != constants.STARTSIGNS.OUTGOING or packet_length != 4 or command != constants.CMD_GETPARAMETER:
+        raise ValueError("Invalid response format!")
+
+    received_param_id = response[3] | (response[4] << 8)  # data1
+    param_value = response[5] | (response[6] << 8)  # data2
+
+    if received_param_id != param_id:
+        raise ValueError(f"Unexpected parameter ID received: {received_param_id}")
+
+    received_crc = response[7] | (response[8] << 8)
+    calculated_crc = utils.calculate_crc(response[:-2])
+
+    if received_crc != calculated_crc:
+        raise ValueError("CRC mismatch! Data may be corrupted.")
+
+    return param_value
+
+def set_parameter(serial_port: serial.Serial, param_id: int, param_value: int):
+    if not (0 <= param_id <= 65535):
+        raise ValueError("Parameter ID must be between 0 and 65535.")
+    
+    header = [constants.STARTSIGNS.INCOMING, 0x04]
+    command = [constants.CMD_SETPARAMETER]
+    
+    param_low_byte = param_id & 0xFF
+    param_high_byte = (param_id >> 8) & 0xFF
+    
+    param_value_low_byte = param_value & 0xFF
+    param_value_high_byte = (param_value >> 8) & 0xFF
+    
+    data = [param_low_byte, param_high_byte, param_value_low_byte, param_value_high_byte]
+    
+    packet = header + command + data
+    
+    crc = utils.calculate_crc(packet)
+    crc_low_byte = crc & 0xFF
+    crc_high_byte = (crc >> 8) & 0xFF
+    
+    final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
+    serial_port.write(final_packet)
+    
+    response = serial_port.read(3)
+    if response[0] == constants.STARTSIGNS.OUTGOING and response[2] == constants.CMD_ACK:
+        print("Pitch command acknowledged.")
+    else:
+        raise ValueError("No acknowledgment received!")
+    
+def get_data(serial_port: serial.Serial, type_byte: int):
+    if type_byte != 0:
+        raise ValueError("Invalid type_byte! Currently, only type 0 is supported.")
+        
+    header = [constants.STARTSIGNS.INCOMING, 0x01]
+    command = [constants.CMD_GETDATA]
+    data = [type_byte]
+    
+    packet = header + command + data
+    
+    crc = utils.calculate_crc(packet)
+    crc_low_byte = crc & 0xFF
+    crc_high_byte = (crc >> 8) & 0xFF
+    
+    final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
+    serial_port.write(final_packet)
+    
+    # ------ READ ------
+    response = serial_port.read(9)
+
+    if len(response) != 8:
+        raise ValueError("Incomplete response received!")
+
+    start_sign = response[0]
+    packet_length = response[1]
+    command = response[2]
+
+    if start_sign != constants.STARTSIGNS.OUTGOING or packet_length != 1 or command != constants.CMD_GETDATA:
+        raise ValueError("Invalid response format!")
+
+    data_stream = response[3] | response[4] << 8 | response[5] << 8
+    received_crc = response[-2] | (response[-1] << 8)
+
+    calculated_crc = utils.calculate_crc(response[:-2])
+
+    if received_crc != calculated_crc:
+        raise ValueError("CRC mismatch! Data may be corrupted.")
+
+    return data_stream
+
+def get_data_fields(serial_port: serial.Serial, bitmask: int) -> tuple:
+    if not (0 <= bitmask <= 0xFFFF):
+        raise ValueError("Bitmask must be a 16-bit integer (0x0000 - 0xFFFF).")
+
+    header = [constants.STARTSIGNS.INCOMING, 0x02]
+    command = [constants.CMD_GETDATAFIELDS]
+    data = [bitmask & 0xFF, (bitmask >> 8) & 0xFF]
+
+    packet = header + command + data
+
     crc = utils.calculate_crc(packet)
     crc_low_byte = crc & 0xFF
     crc_high_byte = (crc >> 8) & 0xFF
 
-    # Final Paket
     final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
 
-    # Paket Gönderimi
-    serial_port.write(final_packet)  # Seri port üzerinden veriyi gönder
-    print(f"Gönderilen Paket (Hex): {final_packet.hex()} - Value: {value}")
+    serial_port.write(final_packet)
 
-# Roll Ayarlama Fonksiyonu
-def set_roll(serial_port, degrees):
-    set_axis(serial_port, degrees, 0x0B)
+    # ------ READ ------
+    header = serial_port.read(3)
+    if len(header) != 3:
+        raise ValueError("Incomplete header received!")
 
-# Pitch Ayarlama Fonksiyonu
-def set_pitch(serial_port, degrees):
-    set_axis(serial_port, degrees, 0x0A)
+    start_sign, packet_length, command = header
 
-# Yaw Ayarlama Fonksiyonu
-def set_yaw(serial_port, degrees):
-    set_axis(serial_port, degrees, 0x0C)
+    if start_sign != constants.STARTSIGNS.OUTGOING or command != constants.CMD_GETDATAFIELDS:
+        raise ValueError("Invalid response format!")
+
+    response = serial_port.read(packet_length + 2)
+
+    if len(response) != packet_length + 2:
+        raise ValueError("Incomplete response received!")
+
+    received_bitmask = response[3] | (response[4] << 8)
+    data_stream = response[5:-2]
+    received_crc = response[-2] | (response[-1] << 8)
+
+    calculated_crc = utils.calculate_crc(header + response[:-2])
+    if received_crc != calculated_crc:
+        raise ValueError("CRC mismatch! Data may be corrupted.")
+    
+    if received_bitmask != bitmask:
+        raise ValueError(f"Bitmask mismatch! Expected {hex(bitmask)}, but got {hex(received_bitmask)}")
+
+    return bitmask, data_stream
+
+def set_pitch(serial_port: serial.Serial, degree: int):
+    header = [constants.STARTSIGNS.INCOMING, 0x02]
+    command = [constants.CMD_SETPITCH]
+    
+    pitch_value = utils.degrees_to_value(degree)
+    data = [pitch_value & 0xFF, (pitch_value >> 8) & 0xFF]
+
+    packet = header + command + data
+
+    crc = utils.calculate_crc(packet)
+    crc_low_byte = crc & 0xFF
+    crc_high_byte = (crc >> 8) & 0xFF
+
+    final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
+
+    serial_port.write(final_packet)
+    
+    # ------ READ ------
+    response = serial_port.read(3)
+    if response[0] == constants.STARTSIGNS.OUTGOING and response[2] == constants.CMD_ACK:
+        print("Pitch command acknowledged.")
+    else:
+        raise ValueError("No acknowledgment received!")
+    
+
+def set_roll(serial_port: serial.Serial, degree: int):
+    header = [constants.STARTSIGNS.INCOMING, 0x02]
+    command = [constants.CMD_SETROLL]
+    
+    roll_value = utils.degrees_to_value(degree)
+    data = [roll_value & 0xFF, (roll_value >> 8) & 0xFF]
+
+    packet = header + command + data
+
+    crc = utils.calculate_crc(packet)
+    crc_low_byte = crc & 0xFF
+    crc_high_byte = (crc >> 8) & 0xFF
+
+    final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
+
+    serial_port.write(final_packet)
+    
+    # ------ READ ------
+    response = serial_port.read(3)
+    if response[0] == constants.STARTSIGNS.OUTGOING and response[2] == constants.CMD_ACK:
+        print("Pitch command acknowledged.")
+    else:
+        raise ValueError("No acknowledgment received!")
+    
+def set_yaw(serial_port: serial.Serial, degree: int):
+    header = [constants.STARTSIGNS.INCOMING, 0x02]
+    command = [constants.CMD_SETROLL]
+    
+    yaw_value = utils.degrees_to_value(degree)
+    data = [yaw_value & 0xFF, (yaw_value >> 8) & 0xFF]
+
+    packet = header + command + data
+
+    crc = utils.calculate_crc(packet)
+    crc_low_byte = crc & 0xFF
+    crc_high_byte = (crc >> 8) & 0xFF
+
+    final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
+
+    serial_port.write(final_packet)
+    
+    # ------ READ ------
+    response = serial_port.read(3)
+    if response[0] == constants.STARTSIGNS.OUTGOING and response[2] == constants.CMD_ACK:
+        print("Pitch command acknowledged.")
+    else:
+        raise ValueError("No acknowledgment received!")
