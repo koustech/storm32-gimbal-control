@@ -298,7 +298,7 @@ def set_roll(serial_port: serial.Serial, degree: int):
     
 def set_yaw(serial_port: serial.Serial, degree: int):
     header = [constants.STARTSIGNS.INCOMING, 0x02]
-    command = [constants.CMD_SETROLL]
+    command = [constants.CMD_SETYAW]
     
     yaw_value = utils.degrees_to_value(degree)
     data = [yaw_value & 0xFF, (yaw_value >> 8) & 0xFF]
