@@ -177,3 +177,4 @@ def set_pan_mode(serial_port: serial.Serial, pan_mode: models.PanMode):
     logging.info(f"Pan mode set to {pan_mode.name} successfully.")
 
 def set_standby(serial_port: serial.Serial):
+    pass
