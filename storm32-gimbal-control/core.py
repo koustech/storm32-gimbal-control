@@ -1,4 +1,88 @@
 import serial
+import utils
+import constants
+import models
+
+def get_version(serial_port: serial.Serial) -> models.VersionResponse:
+    header = [constants.STARTSIGNS.INCOMING, 0x00]
+    command = [constants.CMD_GETVERSION]
+    
+    packet = header + command
+    
+    crc = utils.calculate_crc(packet)
+    crc_low_byte = crc & 0xFF
+    crc_high_byte = (crc >> 8) & 0xFF
+    
+    final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
+    serial_port.write(final_packet)
+    
+    # ------ READ ------
+    response = serial_port.read(11)
+    
+    if len(response) != 11:
+        raise ValueError("Incomplete response received!")
+    
+    start_sign = response[0]
+    packet_length = response[1]
+    command = response[2]
+
+    if start_sign != constants.STARTSIGNS.OUTGOING or packet_length != 6 or command != constants.CMD_GETVERSION:
+        raise ValueError("Invalid response format!")
+
+    data1 = response[3] | (response[4] << 8)
+    data2 = response[5] | (response[6] << 8)
+    data3 = response[7] | (response[8] << 8)
+
+    received_crc = response[9] | (response[10] << 8)
+    calculated_crc = utils.calculate_crc(response[:-2])
+
+    if received_crc != calculated_crc:
+        raise ValueError("CRC mismatch! Data may be corrupted.")
+
+    return models.VersionResponse(firmware_version=data1, hardware_version=data2, protocol_version=data3)
+
+def get_version_str(serial_port: serial.Serial):
+    header = [constants.STARTSIGNS.INCOMING, 0x00]
+    command = [constants.CMD_GETVERSIONSTR]
+    
+    packet = header + command
+    
+    crc = utils.calculate_crc(packet)
+    crc_low_byte = crc & 0xFF
+    crc_high_byte = (crc >> 8) & 0xFF
+    
+    final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
+    serial_port.write(final_packet)
+    
+    # ------ READ ------
+    # (expected length: 3 header bytes + 48 data bytes + 2 CRC bytes = 53)
+    response = serial_port.read(53)
+    
+    if len(response) != 53:
+        raise ValueError("Incomplete response received!")
+    
+    start_sign = response[0]
+    packet_length = response[1]
+    command = response[2]
+
+    if start_sign != constants.STARTSIGNS.OUTGOING or packet_length != 48 or command != constants.CMD_GETVERSIONSTR:
+        raise ValueError("Invalid response format!")
+
+    version_bytes = response[3:19]
+    name_bytes = response[19:35]
+    board_bytes = response[35:51]
+    
+    version = version_bytes.decode('utf-8').rstrip('\x00')
+    name = name_bytes.decode('utf-8').rstrip('\x00')
+    board = board_bytes.decode('utf-8').rstrip('\x00')
+    
+    received_crc = response[51] | (response[52] << 8)
+    calculated_crc = utils.calculate_crc(response[:-2])
+    
+    if received_crc != calculated_crc:
+        raise ValueError("CRC mismatch! Data may be corrupted.")
+
+    return models.VersionStringResponse(version, name, board)
 
 # Genel bir ayar fonksiyonu (Pitch, Roll, Yaw için kullanılabilir)
 def set_axis(serial_port, degrees, command_id):
