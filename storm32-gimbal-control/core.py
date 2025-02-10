@@ -1,29 +1,9 @@
 import serial
 
-# CRC-16 Hesaplama Fonksiyonu (Modbus CRC-16)
-def calculate_crc(data):
-    crc = 0xFFFF  # CRC başlangıç değeri
-    for byte in data:
-        crc ^= byte  # XOR başlangıç değeri ile
-        for _ in range(8):  # Her bit için işlem
-            if (crc & 0x0001):  # Eğer LSB 1 ise
-                crc = (crc >> 1) ^ 0xA001  # Polinomla XOR
-            else:
-                crc >>= 1  # CRC'yi bir bit sağa kaydır
-    return crc & 0xFFFF  # 16-bit'e sınırla
-
-# Dereceyi (degree) değerine dönüştürme fonksiyonu
-def degrees_to_value(degrees):
-    # Dereceyi -90...90 arasında sınırla
-    degrees = max(-90, min(90, degrees))
-
-    # Dereceden uint16_t (700...2300) aralığına dönüştür
-    return int((degrees + 90) * (2300 - 700) / 180 + 700)
-
 # Genel bir ayar fonksiyonu (Pitch, Roll, Yaw için kullanılabilir)
 def set_axis(serial_port, degrees, command_id):
     # Dereceyi uint16_t değere dönüştür
-    value = degrees_to_value(degrees)
+    value = utils.degrees_to_value(degrees)
 
     # CMD_SET Komut Yapısı
     header = [0xFA, 0x02]  # Header: 0xFA 0x02
@@ -36,7 +16,7 @@ def set_axis(serial_port, degrees, command_id):
 
     # CRC Hesaplama
     packet = header + command + data
-    crc = calculate_crc(packet)
+    crc = utils.calculate_crc(packet)
     crc_low_byte = crc & 0xFF
     crc_high_byte = (crc >> 8) & 0xFF
 
