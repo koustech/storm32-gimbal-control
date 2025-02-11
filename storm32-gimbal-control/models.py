@@ -40,3 +40,9 @@ class ScriptControlMode(Enum):
     CASE_2 = 3
     CASE_3 = 4
     
+class PanModeSetting(Enum):
+    DEFAULT_SETTING = 0x00
+    SETTING_1 = 0x01
+    SETTING_2 = 0x02
+    SETTING_3 = 0x03
+    
