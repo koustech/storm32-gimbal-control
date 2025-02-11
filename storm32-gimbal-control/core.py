@@ -3,6 +3,7 @@ import utils
 import constants
 import models
 import logging
+import struct
 
 logging.basicConfig(level=logging.INFO)
 
@@ -176,5 +177,63 @@ def set_pan_mode(serial_port: serial.Serial, pan_mode: models.PanMode):
 
     logging.info(f"Pan mode set to {pan_mode.name} successfully.")
 
-def set_standby(serial_port: serial.Serial):
-    pass
+def set_standby(serial_port: serial.Serial, standby_switch: models.StandBySwitch):
+    response = utils.send_command(serial_port, constants.CMD_SETSTANDBY, [standby_switch.value], 3)
+    if response is None:
+        raise RuntimeError("Failed to receive acknowledgment for SETSTANDBY command!")
+
+    logging.info(f"Pan mode set to {standby_switch.name} successfully.")
+    
+def do_camera(serial_port: serial.Serial, camera_mode: models.DoCameraMode):
+    if not isinstance(camera_mode, models.DoCameraMode):
+        raise ValueError("Invalid camera mode. Use DoCameraMode enum values.")
+    
+    response = utils.send_command(serial_port, constants.CMD_DOCAMERA, [0x00, camera_mode, 0x00, 0x00, 0x00, 0x00], 3)
+    if response is None:
+        raise RuntimeError("Failed to receive acknowledgment for DOCAMERA command!")
+    
+    logging.info(f"Camera set to {do_camera.name} successfully.")
+    
+def set_script_control(serial_port: serial.Serial, script_control_mode: models.ScriptControlMode):
+    if not isinstance(script_control_mode, models.ScriptControlMode):
+        raise ValueError("Invalid camera mode. Use DoCameraMode enum values.")
+    
+    response = utils.send_command(serial_port, constants.CMD_SETSCRIPTCONTROL, [0x00, script_control_mode, 0x00, 0x00, 0x00, 0x00], 3)
+    if response is None:
+        raise RuntimeError("Failed to receive acknowledgment for SETSCRIPTCONTROL command!")
+    
+    logging.info(f"Script Control set to {do_camera.name} successfully.")
+    
+def set_angle(serial_port: serial.Serial, pitch_degree: float, roll_degree: float, yaw_degree: float, flags: int):
+    if not (0x00 <= flags <= 0xFF):
+        raise ValueError("Flags must be a single byte (0x00 - 0xFF).")
+    
+    pitch_bytes = struct.pack('<f', pitch_degree)
+    roll_bytes = struct.pack('<f', roll_degree)
+    yaw_bytes = struct.pack('<f', yaw_degree)
+    
+    response = utils.send_command(serial_port, constants.CMD_SETANGLE, [pitch_bytes, roll_bytes, yaw_bytes, flags, 0x00], 3)
+    if response is None:
+        raise RuntimeError("Failed to receive acknowledgment for SETANGLE command!")
+    
+    logging.info(f"Set angle command with pitch: {pitch_degree}, roll: {roll_degree}, yaw: {yaw_degree} was successfully.")
+    
+def set_pitch_roll_yaw(serial_port: serial.Serial, pitch: int, roll: int, yaw: int):
+    if not (0 <= pitch <= 2300):
+        raise ValueError("Pitch value must be between 0 and 2300.")
+    if not (0 <= roll <= 2300):
+        raise ValueError("Roll value must be between 0 and 2300.")
+    if not (0 <= yaw <= 2300):
+        raise ValueError("Yaw value must be between 0 and 2300.")
+    
+    pitch_data = [pitch & 0xFF, (pitch >> 8) & 0xFF]
+    roll_data = [roll & 0xFF, (roll >> 8) & 0xFF]
+    yaw_data = [yaw & 0xFF, (yaw >> 8) & 0xFF]
+
+    data = [pitch_data + roll_data + yaw_data]
+
+    response = utils.send_command(serial_port, constants.CMD_SETPITCHROLLYAW, data, 3)
+    if response is None:
+        raise RuntimeError("Failed to receive acknowledgment for SETPITCHROLLYAW command!")
+    
+    logging.info(f"Set pitch-roll-yaw command with pitch: {pitch_data}, roll: {roll_data}, yaw: {yaw_data} was successfully.")
