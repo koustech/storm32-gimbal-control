@@ -246,3 +246,44 @@ def set_pitch_roll_yaw(serial_port: serial.Serial, pitch: int, roll: int, yaw: i
         raise RuntimeError("Failed to receive acknowledgment for SETPITCHROLLYAW command!")
     
     logging.info(f"Set pitch-roll-yaw command with pitch: {pitch_data}, roll: {roll_data}, yaw: {yaw_data} was successfully.")
+
+def set_pwm_out(serial_port: serial.Serial, input: int):
+    if (input != 0) and not (700 <= input <= 2300):
+        raise ValueError("Input value must be between 0 and 2300.")
+    
+    data = [input & 0xFF, (input >> 8) & 0xFF]
+    
+    response = utils.send_command(serial_port, constants.CMD_SETPWMOUT, data, 3)
+    if response is None:
+        raise RuntimeError("Failed to receive acknowledgment for SETPWMOUT command!")
+    
+    logging.info(f"Set pwm out with input: {input} was successfully.")
+
+def restore_parameter(serial_port: serial.Serial, param: int):
+    data = [param & 0xFF, (param >> 8) & 0xFF]
+    
+    response = utils.send_command(serial_port, constants.CMD_RESTOREPARAMETER, data, 3)
+    if response is None:
+        raise RuntimeError("Failed to receive acknowledgment for RESTOREPARAMETER command!")
+    
+    logging.info(f"Set restore parameter was successfully.")
+    
+def restore_all_parameters(serial_port: serial.Serial):
+    response = utils.send_command(serial_port, constants.CMD_RESTOREALLPARAMETER, [], 3)
+    if response is None:
+        raise RuntimeError("Failed to receive acknowledgment for RESTOREPARAMETER command!")
+    
+    logging.info(f"Set restore for all parameters was successfully.")
+    
+def active_pan_mode_setting(serial_port: serial.Serial, pan_mode_setting: models.PanModeSetting):
+    if not isinstance(pan_mode_setting, models.PanModeSetting):
+        raise ValueError("Invalid pan mode setting. Use PanModeSetting enum values.")
+    
+    data = [pan_mode_setting.value & 0xFF, (pan_mode_setting.value >> 8) & 0xFF]
+    
+    response = utils.send_command(serial_port, constants.CMD_ACTIVEPANMODESETTING, data, 3)
+    if response is None:
+        raise RuntimeError("Failed to receive acknowledgment for ACTIVEPANMODESETTING command!")
+    
+    logging.info(f"Set restore parameter was successfully.")
+    
