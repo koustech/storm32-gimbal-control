@@ -228,11 +228,11 @@ def set_angle(serial_port: serial.Serial, pitch_degree: float, roll_degree: floa
     logging.info(f"Set angle command with pitch: {pitch_degree}, roll: {roll_degree}, yaw: {yaw_degree} was successfully.")
     
 def set_pitch_roll_yaw(serial_port: serial.Serial, pitch: int, roll: int, yaw: int):
-    if not (0 <= pitch <= 2300):
+    if (pitch != 0) and not (700 <= pitch <= 2300):
         raise ValueError("Pitch value must be between 0 and 2300.")
-    if not (0 <= roll <= 2300):
+    if (pitch != 0) and not (700 <= roll <= 2300):
         raise ValueError("Roll value must be between 0 and 2300.")
-    if not (0 <= yaw <= 2300):
+    if (pitch != 0) and not (700 <= yaw <= 2300):
         raise ValueError("Yaw value must be between 0 and 2300.")
     
     pitch_data = [pitch & 0xFF, (pitch >> 8) & 0xFF]
