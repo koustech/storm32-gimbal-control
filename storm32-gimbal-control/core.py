@@ -146,8 +146,7 @@ def get_data_fields(serial_port: serial.Serial, bitmask: int) -> tuple:
 
     return bitmask, data_stream
 
-def set_axis(serial_port: serial.Serial, command: int, degree: int):
-    value = utils.degrees_to_value(degree)
+def set_axis(serial_port: serial.Serial, command: int, value: int):
     data = [value & 0xFF, (value >> 8) & 0xFF]
 
     response = utils.send_command(serial_port, command, data, 3)
@@ -159,13 +158,23 @@ def set_axis(serial_port: serial.Serial, command: int, degree: int):
 def set_pitch(serial_port: serial.Serial, degree: int):
     set_axis(serial_port, constants.CMD_SETPITCH, degree)
 
-
 def set_roll(serial_port: serial.Serial, degree: int):
     set_axis(serial_port, constants.CMD_SETROLL, degree)
 
-
 def set_yaw(serial_port: serial.Serial, degree: int):
     set_axis(serial_port, constants.CMD_SETYAW, degree)
+    
+def set_pitch_degree(serial_port: serial.Serial, degree: int):
+    value = utils.degrees_to_value(degree)
+    set_axis(serial_port, constants.CMD_SETPITCH, value)
+
+def set_roll_degree(serial_port: serial.Serial, degree: int):
+    value = utils.degrees_to_value(degree)
+    set_axis(serial_port, constants.CMD_SETROLL, value)
+
+def set_yaw_degree(serial_port: serial.Serial, degree: int):
+    value = utils.degrees_to_value(degree)
+    set_axis(serial_port, constants.CMD_SETYAW, value)
 
 def set_pan_mode(serial_port: serial.Serial, pan_mode: models.PanMode):
     if not isinstance(pan_mode, models.PanMode):
