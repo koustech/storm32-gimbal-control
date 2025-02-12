@@ -1,13 +1,15 @@
 import serial
-import utils
-import constants
-import models
+from storm32_gimbal_control import utils
+from storm32_gimbal_control import constants
+from storm32_gimbal_control import models
 import logging
 import struct
 
 logging.basicConfig(level=logging.INFO)
 
 def get_version(serial_port: serial.Serial) -> models.VersionResponse:
+    utils.send_command(serial_port, constants.CMD_GETVERSION, [], 11)
+    """
     response = utils.send_command(serial_port, constants.CMD_GETVERSION, [], 11)
     if response is None:
         raise ValueError("Failed to retrieve version!")
@@ -17,7 +19,8 @@ def get_version(serial_port: serial.Serial) -> models.VersionResponse:
     data3 = response[4] | (response[5] << 8)
 
     return models.VersionResponse(firmware_version=data1, hardware_version=data2, protocol_version=data3)
-
+    """
+    
 def get_version_str(serial_port: serial.Serial) -> models.VersionStringResponse:
     response = utils.send_command(serial_port, constants.CMD_GETVERSIONSTR, [], 53)
     if response is None:
