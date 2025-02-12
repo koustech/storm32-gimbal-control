@@ -20,7 +20,7 @@ logger_response.setLevel(logging.INFO)
 logger_response.propagate = False
 
 console_handler_response = logging.StreamHandler()
-console_formatter_response = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console_formatter_response = logging.Formatter('%(asctime)s - %(name)s - { %(message)s }')
 console_handler_response.setFormatter(console_formatter_response)
 
 logger_response.addHandler(console_handler_response)
@@ -64,7 +64,6 @@ def send_command(serial_port: serial.Serial, command: int, data: list[int], expe
 
     serial_port.write(bytearray(packet))
     """
-    
     if response_cmd == constants.CMD_ACK:
         ack_code = response[3]
         ack_message = constants.ACK_CODES.get(ack_code, f"Unknown ACK Code {ack_code}")
@@ -103,32 +102,19 @@ def read_from_serial(serial_port: serial.Serial):
                     data3 = (response[8] << 8) | response[7]
 
                     logger_response.info(f"\nGETVERSION RESPONSE:\n\tfirmware version:{data1}\n\tsetup layout version: {data2}\n\tboard capabilities value: {data3}")
+                
+                elif response_cmd == constants.CMD_GETVERSIONSTR:
+                    data_stream = response[3:-2]
+
+                    version_string = data_stream[:16].decode(errors='ignore').strip('\x00')
+                    name_string = data_stream[16:32].decode(errors='ignore').strip('\x00')
+                    board_string = data_stream[32:48].decode(errors='ignore').strip('\x00')
+
+                    logger_response.info(f"\nGETVERSIONSTR RESPONSE:\n\tVersion: {version_string}\n\tName: {name_string}\n\tBoard: {board_string}\n")
+
+                elif response_cmd == constants.CMD_GETPARAMETER:
+                    data1 = (response[4] << 8) | response[3]
+                    data2 = (response[6] << 8) | response[5]
                     
-            
-        """
-        start_sign, packet_length, response_cmd = response[:3]
+                    logger_response.info(f"\nGETPARAMETER RESPONSE:\n\tparameter number: {data1}\n\tparameter value: {data2}\n")
         
-        if start_sign != constants.STARTSIGNS.OUTGOING:
-            logging.error("Invalid response format!")
-            return None
-        
-        if response_cmd == constants.CMD_ACK:
-            ack_code = response[3]
-            ack_message = constants.ACK_CODES.get(ack_code, f"Unknown ACK Code {ack_code}")
-
-            if ack_code == 0:
-                logging.info(f"ACK Received: {ack_message}")
-                return response[3:-2]
-            else:
-                logging.error(f"ACK Error: {ack_message}")
-                return None
-
-        received_crc = response[-2] | (response[-1] << 8)
-        calculated_crc = utils.calculate_crc(response[:-2])
-
-        if received_crc != calculated_crc:
-            logging.error("CRC mismatch! Data may be corrupted.")
-            return None
-
-        return response[3:-2]
-        """
