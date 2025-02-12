@@ -9,46 +9,16 @@ logging.basicConfig(level=logging.INFO)
 
 def get_version(serial_port: serial.Serial) -> models.VersionResponse:
     utils.send_command(serial_port, constants.CMD_GETVERSION, [], 11)
-    """
-    response = utils.send_command(serial_port, constants.CMD_GETVERSION, [], 11)
-    if response is None:
-        raise ValueError("Failed to retrieve version!")
-
-    data1 = response[0] | (response[1] << 8)
-    data2 = response[2] | (response[3] << 8)
-    data3 = response[4] | (response[5] << 8)
-
-    return models.VersionResponse(firmware_version=data1, hardware_version=data2, protocol_version=data3)
-    """
     
 def get_version_str(serial_port: serial.Serial) -> models.VersionStringResponse:
-    response = utils.send_command(serial_port, constants.CMD_GETVERSIONSTR, [], 53)
-    if response is None:
-        raise ValueError("Failed to retrieve version string!")
-
-    version = response[:16].decode('utf-8').rstrip('\x00')
-    name = response[16:32].decode('utf-8').rstrip('\x00')
-    board = response[32:48].decode('utf-8').rstrip('\x00')
-
-    return models.VersionStringResponse(version, name, board)
+    utils.send_command(serial_port, constants.CMD_GETVERSIONSTR, [], 53)
 
 def get_parameter(serial_port: serial.Serial, param_id: int) -> int:
     if not (0 <= param_id <= 65535):
         raise ValueError("Parameter ID must be between 0 and 65535.")
 
     data = [param_id & 0xFF, (param_id >> 8) & 0xFF]
-    response = utils.send_command(serial_port, constants.CMD_GETPARAMETER, data, 9)
-    
-    if response is None:
-        raise ValueError("Failed to retrieve parameter!")
-
-    received_param_id = response[0] | (response[1] << 8)
-    param_value = response[2] | (response[3] << 8)
-
-    if received_param_id != param_id:
-        raise ValueError(f"Unexpected parameter ID received: {received_param_id}")
-
-    return param_value
+    utils.send_command(serial_port, constants.CMD_GETPARAMETER, data, 9)
 
 def set_parameter(serial_port: serial.Serial, param_id: int, param_value: int):
     if not (0 <= param_id <= 65535):
