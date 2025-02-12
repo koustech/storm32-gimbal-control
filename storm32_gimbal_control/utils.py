@@ -117,4 +117,16 @@ def read_from_serial(serial_port: serial.Serial):
                     data2 = (response[6] << 8) | response[5]
                     
                     logger_response.info(f"\nGETPARAMETER RESPONSE:\n\tparameter number: {data1}\n\tparameter value: {data2}\n")
-        
+                
+                elif response_cmd == constants.CMD_GETDATA:
+                    type_byte = response[3]
+                    data_stream = response[5:-2].decode(errors='ignore').strip('\x00')
+                    
+                    logger_response.info(f"\GETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
+                    
+                elif response_cmd == constants.CMD_GETDATAFIELDS:
+                    bitmask = (response[4] << 8) | response[3]
+                    data_stream = response[5:-2].decode(errors='ignore').strip('\x00')
+                    
+                    logger_response.info(f"\GETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask}\n\tdatastream: {data_stream}\n")
+                    
