@@ -36,6 +36,27 @@ def calculate_crc(data):
                 crc >>= 1
     return crc & 0xFFFF
 
+def validate_crc(data):
+    """
+    CRC validation function.
+    - data: Incoming data including CRC.
+
+    Data format: [data1, data2, ..., crc_low, crc_high]
+    """
+    if len(data) < 3:
+        raise ValueError("Data is too short!")
+
+    received_crc = (data[-1] << 8) | data[-2] 
+    data_without_crc = data[:-2] 
+
+    calculated_crc = calculate_crc(data_without_crc)
+
+    if calculated_crc == received_crc:
+        return True  
+    else:
+        return False
+
+
 def degrees_to_value(degrees):
     if -90 <= degrees <= 90:
         raise ValueError("The degree must be in between values -90 and 90!")
@@ -92,6 +113,7 @@ def read_from_serial(serial_port: serial.Serial):
         
         if response:
             hex_data = ' '.join(f'{byte:02X}' for byte in response)
+
             logger_serial.info(hex_data)
 
             start_sign, packet_length, response_cmd = response[:3]
@@ -103,8 +125,6 @@ def read_from_serial(serial_port: serial.Serial):
                     data3 = (response[8] << 8) | response[7]
 
                     logger_response.info(f"\nGETVERSION RESPONSE:\n\tfirmware version:{data1}\n\tsetup layout version: {data2}\n\tboard capabilities value: {data3}")
-                    
-            
         """
         start_sign, packet_length, response_cmd = response[:3]
         
