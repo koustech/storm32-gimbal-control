@@ -29,9 +29,7 @@ def set_parameter(serial_port: serial.Serial, param_id: int, param_value: int):
         param_value & 0xFF, (param_value >> 8) & 0xFF
     ]
 
-    response = utils.send_command(serial_port, constants.CMD_SETPARAMETER, data, 3)
-    if response is None:
-        raise RuntimeError("No acknowledgment received for setting parameter.")
+    utils.send_command(serial_port, constants.CMD_SETPARAMETER, data, 3)
 
 def get_data(serial_port: serial.Serial, type_byte: int):
     if type_byte != 0:
@@ -49,29 +47,6 @@ def get_data(serial_port: serial.Serial, type_byte: int):
     
     final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
     serial_port.write(final_packet)
-    
-    # ------ READ ------
-    response = serial_port.read(9)
-
-    if len(response) != 8:
-        raise ValueError("Incomplete response received!")
-
-    start_sign = response[0]
-    packet_length = response[1]
-    command = response[2]
-
-    if start_sign != constants.STARTSIGNS.OUTGOING or packet_length != 1 or command != constants.CMD_GETDATA:
-        raise ValueError("Invalid response format!")
-
-    data_stream = response[3] | response[4] << 8 | response[5] << 8
-    received_crc = response[-2] | (response[-1] << 8)
-
-    calculated_crc = utils.calculate_crc(response[:-2])
-
-    if received_crc != calculated_crc:
-        raise ValueError("CRC mismatch! Data may be corrupted.")
-
-    return data_stream
 
 def get_data_fields(serial_port: serial.Serial, bitmask: int) -> tuple:
     if not (0 <= bitmask <= 0xFFFF):
@@ -91,42 +66,10 @@ def get_data_fields(serial_port: serial.Serial, bitmask: int) -> tuple:
 
     serial_port.write(final_packet)
 
-    # ------ READ ------
-    header = serial_port.read(3)
-    if len(header) != 3:
-        raise ValueError("Incomplete header received!")
-
-    start_sign, packet_length, command = header
-
-    if start_sign != constants.STARTSIGNS.OUTGOING or command != constants.CMD_GETDATAFIELDS:
-        raise ValueError("Invalid response format!")
-
-    response = serial_port.read(packet_length + 2)
-
-    if len(response) != packet_length + 2:
-        raise ValueError("Incomplete response received!")
-
-    received_bitmask = response[3] | (response[4] << 8)
-    data_stream = response[5:-2]
-    received_crc = response[-2] | (response[-1] << 8)
-
-    calculated_crc = utils.calculate_crc(header + response[:-2])
-    if received_crc != calculated_crc:
-        raise ValueError("CRC mismatch! Data may be corrupted.")
-    
-    if received_bitmask != bitmask:
-        raise ValueError(f"Bitmask mismatch! Expected {hex(bitmask)}, but got {hex(received_bitmask)}")
-
-    return bitmask, data_stream
-
 def set_axis(serial_port: serial.Serial, command: int, value: int):
     data = [value & 0xFF, (value >> 8) & 0xFF]
 
-    response = utils.send_command(serial_port, command, data, 3)
-    if response is None:
-        raise RuntimeError(f"No acknowledgment received for {command} command.")
-
-    print(f"{command} command acknowledged.")
+    utils.send_command(serial_port, command, data, 3)
 
 def set_pitch(serial_port: serial.Serial, degree: int):
     set_axis(serial_port, constants.CMD_SETPITCH, degree)
@@ -153,38 +96,22 @@ def set_pan_mode(serial_port: serial.Serial, pan_mode: models.PanMode):
     if not isinstance(pan_mode, models.PanMode):
         raise ValueError("Invalid pan mode. Use PanMode enum values.")
 
-    response = utils.send_command(serial_port, constants.CMD_SETPANMODE, [pan_mode.value], 3)
-    if response is None:
-        raise RuntimeError("Failed to receive acknowledgment for SETPANMODE command!")
-
-    logging.info(f"Pan mode set to {pan_mode.name} successfully.")
+    utils.send_command(serial_port, constants.CMD_SETPANMODE, [pan_mode.value], 3)
 
 def set_standby(serial_port: serial.Serial, standby_switch: models.StandBySwitch):
-    response = utils.send_command(serial_port, constants.CMD_SETSTANDBY, [standby_switch.value], 3)
-    if response is None:
-        raise RuntimeError("Failed to receive acknowledgment for SETSTANDBY command!")
-
-    logging.info(f"Pan mode set to {standby_switch.name} successfully.")
+    utils.send_command(serial_port, constants.CMD_SETSTANDBY, [standby_switch.value], 3)
     
 def do_camera(serial_port: serial.Serial, camera_mode: models.DoCameraMode):
     if not isinstance(camera_mode, models.DoCameraMode):
         raise ValueError("Invalid camera mode. Use DoCameraMode enum values.")
     
-    response = utils.send_command(serial_port, constants.CMD_DOCAMERA, [0x00, camera_mode, 0x00, 0x00, 0x00, 0x00], 3)
-    if response is None:
-        raise RuntimeError("Failed to receive acknowledgment for DOCAMERA command!")
-    
-    logging.info(f"Camera set to {do_camera.name} successfully.")
+    utils.send_command(serial_port, constants.CMD_DOCAMERA, [0x00, camera_mode, 0x00, 0x00, 0x00, 0x00], 3)
     
 def set_script_control(serial_port: serial.Serial, script_control_mode: models.ScriptControlMode):
     if not isinstance(script_control_mode, models.ScriptControlMode):
         raise ValueError("Invalid camera mode. Use DoCameraMode enum values.")
     
-    response = utils.send_command(serial_port, constants.CMD_SETSCRIPTCONTROL, [0x00, script_control_mode, 0x00, 0x00, 0x00, 0x00], 3)
-    if response is None:
-        raise RuntimeError("Failed to receive acknowledgment for SETSCRIPTCONTROL command!")
-    
-    logging.info(f"Script Control set to {do_camera.name} successfully.")
+    utils.send_command(serial_port, constants.CMD_SETSCRIPTCONTROL, [0x00, script_control_mode, 0x00, 0x00, 0x00, 0x00], 3)
     
 def set_angle(serial_port: serial.Serial, pitch_degree: float, roll_degree: float, yaw_degree: float, flags: int):
     if not (0x00 <= flags <= 0xFF):
@@ -194,11 +121,7 @@ def set_angle(serial_port: serial.Serial, pitch_degree: float, roll_degree: floa
     roll_bytes = struct.pack('<f', roll_degree)
     yaw_bytes = struct.pack('<f', yaw_degree)
     
-    response = utils.send_command(serial_port, constants.CMD_SETANGLE, [pitch_bytes, roll_bytes, yaw_bytes, flags, 0x00], 3)
-    if response is None:
-        raise RuntimeError("Failed to receive acknowledgment for SETANGLE command!")
-    
-    logging.info(f"Set angle command with pitch: {pitch_degree}, roll: {roll_degree}, yaw: {yaw_degree} was successfully.")
+    utils.send_command(serial_port, constants.CMD_SETANGLE, [pitch_bytes, roll_bytes, yaw_bytes, flags, 0x00], 3)
     
 def set_pitch_roll_yaw(serial_port: serial.Serial, pitch: int, roll: int, yaw: int):
     if (pitch != 0) and not (700 <= pitch <= 2300):
@@ -214,39 +137,23 @@ def set_pitch_roll_yaw(serial_port: serial.Serial, pitch: int, roll: int, yaw: i
 
     data = [pitch_data + roll_data + yaw_data]
 
-    response = utils.send_command(serial_port, constants.CMD_SETPITCHROLLYAW, data, 3)
-    if response is None:
-        raise RuntimeError("Failed to receive acknowledgment for SETPITCHROLLYAW command!")
+    utils.send_command(serial_port, constants.CMD_SETPITCHROLLYAW, data, 3)
     
-    logging.info(f"Set pitch-roll-yaw command with pitch: {pitch_data}, roll: {roll_data}, yaw: {yaw_data} was successfully.")
-
 def set_pwm_out(serial_port: serial.Serial, input: int):
     if (input != 0) and not (700 <= input <= 2300):
         raise ValueError("Input value must be between 0 and 2300.")
     
     data = [input & 0xFF, (input >> 8) & 0xFF]
     
-    response = utils.send_command(serial_port, constants.CMD_SETPWMOUT, data, 3)
-    if response is None:
-        raise RuntimeError("Failed to receive acknowledgment for SETPWMOUT command!")
+    utils.send_command(serial_port, constants.CMD_SETPWMOUT, data, 3)
     
-    logging.info(f"Set pwm out with input: {input} was successfully.")
-
 def restore_parameter(serial_port: serial.Serial, param: int):
     data = [param & 0xFF, (param >> 8) & 0xFF]
     
-    response = utils.send_command(serial_port, constants.CMD_RESTOREPARAMETER, data, 3)
-    if response is None:
-        raise RuntimeError("Failed to receive acknowledgment for RESTOREPARAMETER command!")
-    
-    logging.info(f"Set restore parameter was successfully.")
+    utils.send_command(serial_port, constants.CMD_RESTOREPARAMETER, data, 3)
     
 def restore_all_parameters(serial_port: serial.Serial):
-    response = utils.send_command(serial_port, constants.CMD_RESTOREALLPARAMETER, [], 3)
-    if response is None:
-        raise RuntimeError("Failed to receive acknowledgment for RESTOREPARAMETER command!")
-    
-    logging.info(f"Set restore for all parameters was successfully.")
+    utils.send_command(serial_port, constants.CMD_RESTOREALLPARAMETER, [], 3)
     
 def active_pan_mode_setting(serial_port: serial.Serial, pan_mode_setting: models.PanModeSetting):
     if not isinstance(pan_mode_setting, models.PanModeSetting):
@@ -254,9 +161,5 @@ def active_pan_mode_setting(serial_port: serial.Serial, pan_mode_setting: models
     
     data = [pan_mode_setting.value & 0xFF, (pan_mode_setting.value >> 8) & 0xFF]
     
-    response = utils.send_command(serial_port, constants.CMD_ACTIVEPANMODESETTING, data, 3)
-    if response is None:
-        raise RuntimeError("Failed to receive acknowledgment for ACTIVEPANMODESETTING command!")
-    
-    logging.info(f"Set restore parameter was successfully.")
+    utils.send_command(serial_port, constants.CMD_ACTIVEPANMODESETTING, data, 3)
     
