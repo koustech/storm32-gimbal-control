@@ -2,6 +2,7 @@ import os
 import sys
 import serial
 import threading
+import time
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -14,3 +15,5 @@ thread = threading.Thread(target=utils.read_from_serial, args=(serial_port,))
 thread.start()
 
 core.get_version(serial_port)
+time.sleep(1)
+core.get_version_str(serial_port)

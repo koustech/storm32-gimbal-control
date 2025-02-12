@@ -87,7 +87,7 @@ def send_command(serial_port: serial.Serial, command: int, data: list[int], expe
     
 def read_from_serial(serial_port: serial.Serial):
     while True:
-        response = serial_port.readline().strip()
+        response = serial_port.readline()
         
         if response:
             hex_data = ' '.join(f'{byte:02X}' for byte in response)
@@ -106,9 +106,9 @@ def read_from_serial(serial_port: serial.Serial):
                 elif response_cmd == constants.CMD_GETVERSIONSTR:
                     data_stream = response[3:-2]
 
-                    version_string = data_stream[:16].decode(errors='ignore').strip('\x00')
-                    name_string = data_stream[16:32].decode(errors='ignore').strip('\x00')
-                    board_string = data_stream[32:48].decode(errors='ignore').strip('\x00')
+                    version_string = data_stream[:16].decode('utf-8', errors="ignore").rstrip('\x00')
+                    name_string = data_stream[16:32].decode('utf-8', errors="ignore").rstrip('\x00')
+                    board_string = data_stream[32:48].decode('utf-8', errors="ignore").rstrip('\x00')
 
                     logger_response.info(f"\nGETVERSIONSTR RESPONSE:\n\tVersion: {version_string}\n\tName: {name_string}\n\tBoard: {board_string}\n")
 
@@ -120,13 +120,18 @@ def read_from_serial(serial_port: serial.Serial):
                 
                 elif response_cmd == constants.CMD_GETDATA:
                     type_byte = response[3]
-                    data_stream = response[5:-2].decode(errors='ignore').strip('\x00')
+                    data_stream = response[5:-2].decode('utf-8', errors="ignore").rstrip('\x00')
                     
-                    logger_response.info(f"\GETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
+                    logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
                     
                 elif response_cmd == constants.CMD_GETDATAFIELDS:
                     bitmask = (response[4] << 8) | response[3]
-                    data_stream = response[5:-2].decode(errors='ignore').strip('\x00')
+                    data_stream = response[5:-2].decode('utf-8', errors="ignore").rstrip('\x00')
+
+                    logger_response.info(f"\nGETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask}\n\tdatastream: {data_stream}\n")
+                
+                elif response_cmd == constants.CMD_ACK:
+                    data = response[3]
                     
-                    logger_response.info(f"\GETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask}\n\tdatastream: {data_stream}\n")
+                    logger_response.info(f"\nACK RESPONSE:\n\tdata: {constants.ACK_CODES[data]}\n")
                     
