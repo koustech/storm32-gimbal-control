@@ -5,7 +5,25 @@ from storm32_gimbal_control import models
 import logging
 from typing import Optional, Union
 
-logging.basicConfig(level=logging.INFO)
+logger_serial = logging.getLogger("LoggerSerial")
+logger_serial.setLevel(logging.INFO)
+logger_serial.propagate = False
+
+console_handler_serial = logging.StreamHandler()
+console_formatter_serial = logging.Formatter("%(asctime)s - %(levelname)s - Serial data: %(message)s")
+console_handler_serial.setFormatter(console_formatter_serial)
+
+logger_serial.addHandler(console_handler_serial)
+
+logger_response = logging.getLogger("LoggerResponse")
+logger_response.setLevel(logging.INFO)
+logger_response.propagate = False
+
+console_handler_response = logging.StreamHandler()
+console_formatter_response = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console_handler_response.setFormatter(console_formatter_response)
+
+logger_response.addHandler(console_handler_response)
 
 def calculate_crc(data):
     crc = 0xFFFF 
@@ -67,17 +85,6 @@ def send_command(serial_port: serial.Serial, command: int, data: list[int], expe
 
     serial_port.write(bytearray(packet))
     """
-    response = serial_port.read(expected_length)
-
-    if len(response) != expected_length:
-        logging.error(f"Incomplete response! Expected {expected_length}, got {len(response)}")
-        return None
-
-    start_sign, packet_length, response_cmd = response[:3]
-    
-    if start_sign != constants.STARTSIGNS.OUTGOING or response_cmd != command:
-        logging.error("Invalid response format!")
-        return None
     
     if response_cmd == constants.CMD_ACK:
         ack_code = response[3]
@@ -103,15 +110,22 @@ def send_command(serial_port: serial.Serial, command: int, data: list[int], expe
 def read_from_serial(serial_port: serial.Serial):
     while True:
         response = serial_port.readline().strip()
-
+        
         if response:
             hex_data = ' '.join(f'{byte:02X}' for byte in response)
-            logging.info(hex_data)
-            
-            data1 = (response[4] << 8) | response[3]
-            data2 = (response[6] << 8) | response[5]
-            data3 = (response[8] << 8) | response[7]
-            
+
+            logger_serial.info(hex_data)
+
+            start_sign, packet_length, response_cmd = response[:3]
+
+            if start_sign == constants.STARTSIGNS.OUTGOING:
+                if response_cmd == constants.CMD_GETVERSION:
+                    data1 = (response[4] << 8) | response[3]
+                    data2 = (response[6] << 8) | response[5]
+                    data3 = (response[8] << 8) | response[7]
+
+                    logger_response.info(f"\nGETVERSION RESPONSE:\n\tfirmware version:{data1}\n\tsetup layout version: {data2}\n\tboard capabilities value: {data3}")
+        """
         start_sign, packet_length, response_cmd = response[:3]
         
         if start_sign != constants.STARTSIGNS.OUTGOING:
@@ -137,3 +151,4 @@ def read_from_serial(serial_port: serial.Serial):
             return None
 
         return response[3:-2]
+        """
