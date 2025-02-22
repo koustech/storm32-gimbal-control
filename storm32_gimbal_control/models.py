@@ -4,8 +4,8 @@ from enum import Enum, Flag, auto
 @dataclass
 class VersionResponse:
     firmware_version: int
-    hardware_version: int
-    protocol_version: int
+    setup_layout_version: int
+    board_capabilities: int
 
 @dataclass
 class VersionStringResponse:
