@@ -20,7 +20,9 @@ def get_parameter(serial_port: serial.Serial, param_id: int) -> int:
         raise ValueError("Parameter ID must be between 0 and 65535.")
 
     data = [param_id & 0xFF, (param_id >> 8) & 0xFF]
-    utils.send_command(serial_port, constants.CMD_GETPARAMETER, data, 9)
+    utils.send_command(serial_port, constants.CMD_GETPARAMETER, data)
+    
+    return utils.read_from_serial(serial_port, 9)
 
 def set_parameter(serial_port: serial.Serial, param_id: int, param_value: int):
     if not (0 <= param_id <= 65535):
@@ -31,7 +33,9 @@ def set_parameter(serial_port: serial.Serial, param_id: int, param_value: int):
         param_value & 0xFF, (param_value >> 8) & 0xFF
     ]
 
-    utils.send_command(serial_port, constants.CMD_SETPARAMETER, data, 3)
+    utils.send_command(serial_port, constants.CMD_SETPARAMETER, data)
+    
+    return utils.read_from_serial(serial_port, 6)
 
 def get_data(serial_port: serial.Serial, type_byte: int):
     if type_byte != 0:
