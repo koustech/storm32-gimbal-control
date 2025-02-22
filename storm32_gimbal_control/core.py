@@ -91,32 +91,42 @@ def set_pan_mode(serial_port: serial.Serial, pan_mode: models.PanMode):
     if not isinstance(pan_mode, models.PanMode):
         raise ValueError("Invalid pan mode. Use PanMode enum values.")
 
-    utils.send_command(serial_port, constants.CMD_SETPANMODE, [pan_mode.value], 3)
+    utils.send_command(serial_port, constants.CMD_SETPANMODE, [pan_mode.value])
+    
+    return utils.read_from_serial(serial_port, 6)
 
 def set_standby(serial_port: serial.Serial, standby_switch: models.StandBySwitch):
-    utils.send_command(serial_port, constants.CMD_SETSTANDBY, [standby_switch.value], 3)
+    utils.send_command(serial_port, constants.CMD_SETSTANDBY, [standby_switch.value])
+    
+    return utils.read_from_serial(serial_port, 6)
     
 def do_camera(serial_port: serial.Serial, camera_mode: models.DoCameraMode):
     if not isinstance(camera_mode, models.DoCameraMode):
         raise ValueError("Invalid camera mode. Use DoCameraMode enum values.")
     
-    utils.send_command(serial_port, constants.CMD_DOCAMERA, [0x00, camera_mode, 0x00, 0x00, 0x00, 0x00], 3)
+    utils.send_command(serial_port, constants.CMD_DOCAMERA, [0x00, camera_mode.value, 0x00, 0x00, 0x00, 0x00])
+    
+    return utils.read_from_serial(serial_port, 6)
     
 def set_script_control(serial_port: serial.Serial, script_control_mode: models.ScriptControlMode):
     if not isinstance(script_control_mode, models.ScriptControlMode):
         raise ValueError("Invalid camera mode. Use DoCameraMode enum values.")
     
-    utils.send_command(serial_port, constants.CMD_SETSCRIPTCONTROL, [0x00, script_control_mode, 0x00, 0x00, 0x00, 0x00], 3)
+    utils.send_command(serial_port, constants.CMD_SETSCRIPTCONTROL, [0x00, script_control_mode.value, 0x00, 0x00, 0x00, 0x00])
     
-def set_angle(serial_port: serial.Serial, pitch_degree: float, roll_degree: float, yaw_degree: float, flags: int):
-    if not (0x00 <= flags <= 0xFF):
-        raise ValueError("Flags must be a single byte (0x00 - 0xFF).")
+    return utils.read_from_serial(serial_port, 6)
     
-    pitch_bytes = struct.pack('<f', pitch_degree)
-    roll_bytes = struct.pack('<f', roll_degree)
-    yaw_bytes = struct.pack('<f', yaw_degree)
+def set_angle(serial_port: serial.Serial, pitch_degree: float, roll_degree: float, yaw_degree: float, flags: models.SetAngleFlags):
+    if not isinstance(flags, models.SetAngleFlags):
+        raise ValueError("Invalid flags. Use SetAngleFlags enum values.")
     
-    utils.send_command(serial_port, constants.CMD_SETANGLE, [pitch_bytes, roll_bytes, yaw_bytes, flags, 0x00], 3)
+    pitch_bytes = list(struct.pack('<f', pitch_degree))
+    roll_bytes = list(struct.pack('<f', roll_degree))
+    yaw_bytes = list(struct.pack('<f', yaw_degree))
+    
+    utils.send_command(serial_port, constants.CMD_SETANGLE, pitch_bytes + roll_bytes + yaw_bytes + [flags.value, 0x00])
+    
+    return utils.read_from_serial(serial_port, 6)
     
 def set_pitch_roll_yaw(serial_port: serial.Serial, pitch: int, roll: int, yaw: int):
     if (pitch != 0) and not (700 <= pitch <= 2300):
@@ -130,9 +140,11 @@ def set_pitch_roll_yaw(serial_port: serial.Serial, pitch: int, roll: int, yaw: i
     roll_data = [roll & 0xFF, (roll >> 8) & 0xFF]
     yaw_data = [yaw & 0xFF, (yaw >> 8) & 0xFF]
 
-    data = [pitch_data + roll_data + yaw_data]
+    data = pitch_data + roll_data + yaw_data
 
-    utils.send_command(serial_port, constants.CMD_SETPITCHROLLYAW, data, 3)
+    utils.send_command(serial_port, constants.CMD_SETPITCHROLLYAW, data)
+    
+    return utils.read_from_serial(serial_port, 6)
     
 def set_pwm_out(serial_port: serial.Serial, input: int):
     if (input != 0) and not (700 <= input <= 2300):
@@ -140,15 +152,21 @@ def set_pwm_out(serial_port: serial.Serial, input: int):
     
     data = [input & 0xFF, (input >> 8) & 0xFF]
     
-    utils.send_command(serial_port, constants.CMD_SETPWMOUT, data, 3)
+    utils.send_command(serial_port, constants.CMD_SETPWMOUT, data)
+    
+    return utils.read_from_serial(serial_port, 6)
     
 def restore_parameter(serial_port: serial.Serial, param: int):
     data = [param & 0xFF, (param >> 8) & 0xFF]
     
-    utils.send_command(serial_port, constants.CMD_RESTOREPARAMETER, data, 3)
+    utils.send_command(serial_port, constants.CMD_RESTOREPARAMETER, data)
+    
+    return utils.read_from_serial(serial_port, 6)
     
 def restore_all_parameters(serial_port: serial.Serial):
-    utils.send_command(serial_port, constants.CMD_RESTOREALLPARAMETER, [], 3)
+    utils.send_command(serial_port, constants.CMD_RESTOREALLPARAMETER, [])
+    
+    return utils.read_from_serial(serial_port, 6)
     
 def active_pan_mode_setting(serial_port: serial.Serial, pan_mode_setting: models.PanModeSetting):
     if not isinstance(pan_mode_setting, models.PanModeSetting):
@@ -156,5 +174,6 @@ def active_pan_mode_setting(serial_port: serial.Serial, pan_mode_setting: models
     
     data = [pan_mode_setting.value & 0xFF, (pan_mode_setting.value >> 8) & 0xFF]
     
-    utils.send_command(serial_port, constants.CMD_ACTIVEPANMODESETTING, data, 3)
+    utils.send_command(serial_port, constants.CMD_ACTIVEPANMODESETTING, data)
     
+    return utils.read_from_serial(serial_port, 6)
