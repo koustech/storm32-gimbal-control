@@ -10,7 +10,7 @@ from storm32_gimbal_control import utils
 
 serial_port = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
 
-thread = threading.Thread(target=utils.read_from_serial, args=(serial_port,))
-thread.start()
-
 core.set_yaw(serial_port, 0)
+core.set_pitch(serial_port, 0)
+core.set_roll(serial_port, 0)
+

@@ -38,44 +38,33 @@ def set_parameter(serial_port: serial.Serial, param_id: int, param_value: int):
     return utils.read_from_serial(serial_port, 6)
 
 def get_data(serial_port: serial.Serial, type_byte: int):
+    # TODO: Change this to read both CMD_ACK and CMD_GETDATA return
     if type_byte != 0:
         raise ValueError("Invalid type_byte! Currently, only type 0 is supported.")
-        
-    header = [constants.STARTSIGNS.INCOMING, 0x01]
-    command = [constants.CMD_GETDATA]
+
     data = [type_byte]
+
+    utils.send_command(serial_port, constants.CMD_GETDATA, data)
     
-    packet = header + command + data
-    
-    crc = utils.calculate_crc(packet)
-    crc_low_byte = crc & 0xFF
-    crc_high_byte = (crc >> 8) & 0xFF
-    
-    final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
-    serial_port.write(final_packet)
+    return utils.read_from_serial(serial_port, 6)
 
 def get_data_fields(serial_port: serial.Serial, bitmask: int) -> tuple:
+    # TODO: this function is not implemented, below is boilerplate code
     if not (0 <= bitmask <= 0xFFFF):
         raise ValueError("Bitmask must be a 16-bit integer (0x0000 - 0xFFFF).")
 
-    header = [constants.STARTSIGNS.INCOMING, 0x02]
-    command = [constants.CMD_GETDATAFIELDS]
     data = [bitmask & 0xFF, (bitmask >> 8) & 0xFF]
 
-    packet = header + command + data
-
-    crc = utils.calculate_crc(packet)
-    crc_low_byte = crc & 0xFF
-    crc_high_byte = (crc >> 8) & 0xFF
-
-    final_packet = bytearray(packet + [crc_low_byte, crc_high_byte])
-
-    serial_port.write(final_packet)
+    utils.send_command(serial_port, constants.CMD_GETDATAFIELDS, data)
+    
+    return utils.read_from_serial(serial_port, 6)
 
 def set_axis(serial_port: serial.Serial, command: int, value: int):
     data = [value & 0xFF, (value >> 8) & 0xFF]
 
-    utils.send_command(serial_port, command, data, 3)
+    utils.send_command(serial_port, command, data)
+    
+    return utils.read_from_serial(serial_port, 6)
 
 def set_pitch(serial_port: serial.Serial, degree: int):
     set_axis(serial_port, constants.CMD_SETPITCH, degree)
