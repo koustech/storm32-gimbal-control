@@ -95,7 +95,13 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
         start_sign, packet_length, response_cmd = response[:3]
 
         if start_sign == constants.STARTSIGNS.OUTGOING:
-            if response_cmd == constants.CMD_GETVERSION:
+            if response_cmd == constants.CMD_ACK:
+                data = response[3]
+                
+                logger_response.info(f"\nACK RESPONSE:\n\tdata: {constants.ACK_CODES[data]}\n")
+                return constants.ACK_CODES[data]
+                
+            elif response_cmd == constants.CMD_GETVERSION:
                 data1 = (response[4] << 8) | response[3]
                 data2 = (response[6] << 8) | response[5]
                 data3 = (response[8] << 8) | response[7]
@@ -124,7 +130,7 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
             elif response_cmd == constants.CMD_GETDATA:
                 type_byte = response[3]
                 
-                # GETDATA can't be 0x76 but GETVERSIONSTR returns with 0x76 for some reason
+                # GETDATA can't be 0x76 but GETVERSIONSTR returns GETDATA with 0x76 for some reason
                 if type_byte == 0x76:
                     data_stream = response[3:-2]
                     logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
@@ -138,14 +144,11 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
                 data_stream = response[5:-2]
                 logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
                 
+                return type_byte, data_stream
+                
             elif response_cmd == constants.CMD_GETDATAFIELDS:
                 bitmask = (response[4] << 8) | response[3]
                 data_stream = response[5:-2].decode('utf-8', errors="ignore").rstrip('\x00')
 
                 logger_response.info(f"\nGETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask}\n\tdatastream: {data_stream}\n")
-            
-            elif response_cmd == constants.CMD_ACK:
-                data = response[3]
-                
-                logger_response.info(f"\nACK RESPONSE:\n\tdata: {constants.ACK_CODES[data]}\n")
                 
