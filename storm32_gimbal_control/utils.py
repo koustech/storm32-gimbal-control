@@ -63,27 +63,6 @@ def send_command(serial_port: serial.Serial, command: int, data: list[int]) -> O
     packet += [crc & 0xFF, (crc >> 8) & 0xFF]
 
     serial_port.write(bytearray(packet))
-    """
-    if response_cmd == constants.CMD_ACK:
-        ack_code = response[3]
-        ack_message = constants.ACK_CODES.get(ack_code, f"Unknown ACK Code {ack_code}")
-
-        if ack_code == 0:
-            logging.info(f"ACK Received: {ack_message}")
-            return response[3:-2]  # Return response without header & CRC
-        else:
-            logging.error(f"ACK Error: {ack_message}")
-            return None
-
-    received_crc = response[-2] | (response[-1] << 8)
-    calculated_crc = utils.calculate_crc(response[:-2])
-
-    if received_crc != calculated_crc:
-        logging.error("CRC mismatch! Data may be corrupted.")
-        return None
-
-    return response[3:-2]
-    """
     
 def read_from_serial(serial_port: serial.Serial, expected_length: int):
     response = serial_port.read(expected_length)
