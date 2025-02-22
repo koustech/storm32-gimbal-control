@@ -13,7 +13,7 @@ def get_version(serial_port: serial.Serial) -> models.VersionResponse:
     
 def get_version_str(serial_port: serial.Serial) -> models.VersionStringResponse:
     utils.send_command(serial_port, constants.CMD_GETVERSIONSTR, [])
-    print(utils.read_from_serial(serial_port, 5+16*3))
+    return utils.read_from_serial(serial_port, 5+16*3)
     
 def get_parameter(serial_port: serial.Serial, param_id: int) -> int:
     if not (0 <= param_id <= 65535):
