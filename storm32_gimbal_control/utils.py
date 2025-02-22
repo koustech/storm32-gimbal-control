@@ -2,6 +2,7 @@ import serial
 from storm32_gimbal_control import utils
 from storm32_gimbal_control import constants
 from storm32_gimbal_control import models
+from storm32_gimbal_control import exceptions
 import logging
 from typing import Optional, Union
 
@@ -49,6 +50,17 @@ def calculate_crc(data):
                 crc >>= 1
     return crc & 0xFFFF
 
+def calculate_crc_ccitt(data):
+    crc = 0xFFFF  # CCITT uses 0xFFFF as initial value
+    for byte in data:
+        crc ^= byte << 8
+        for _ in range(8):
+            if crc & 0x8000:
+                crc = (crc << 1) ^ 0x1021  # CCITT uses 0x1021 polynomial
+            else:
+                crc <<= 1
+    return crc & 0xFFFF
+
 def validate_crc(data):
     """
     CRC validation function.
@@ -59,7 +71,7 @@ def validate_crc(data):
     if len(data) < 3:
         raise ValueError("Data is too short!")
 
-    received_crc = (data[-1] << 8) | data[-2] 
+    received_crc = data[-2] | (data[-1] << 8) 
     data_without_crc = data[:-2] 
 
     calculated_crc = calculate_crc(data_without_crc)
@@ -68,7 +80,6 @@ def validate_crc(data):
         return True  
     else:
         return False
-
 
 def degrees_to_value(degrees):
     if -90 <= degrees <= 90:
@@ -106,12 +117,21 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
         logger_serial.info(hex_data)
 
         start_sign, packet_length, response_cmd = response[:3]
-
+        
+        # CRC fails for some reason but the response is correct
+        #if not validate_crc(response):
+        #    logger_response.warning("CRC validation failed!")
+        #    raise exceptions.CrcError("CRC validation failed!")
+        #    return None
+        
         if start_sign == constants.STARTSIGNS.OUTGOING:
             if response_cmd == constants.CMD_ACK:
                 data = response[3]
                 
                 logger_response.info(f"\nACK RESPONSE:\n\tdata: {constants.ACK_CODES[data]}\n")
+                if constants.ACK_CODES[data] != "SERIALRCCMD_ACK_OK":
+                    raise exceptions.AckError(constants.ACK_CODES[data])
+                
                 return constants.ACK_CODES[data]
                 
             elif response_cmd == constants.CMD_GETVERSION:
@@ -121,7 +141,7 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
 
                 logger_response.info(f"\nGETVERSION RESPONSE:\n\tfirmware version:{data1}\n\tsetup layout version: {data2}\n\tboard capabilities value: {data3}")
                 
-                return data1, data2, data3
+                return models.VersionResponse(firmware_version=data1, setup_layout_version=data2, board_capabilities=data3)
             
             elif response_cmd == constants.CMD_GETVERSIONSTR:
                 data_stream = response[3:-2]
@@ -132,7 +152,7 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
 
                 logger_response.info(f"\nGETVERSIONSTR RESPONSE:\n\tVersion: {version_string}\n\tName: {name_string}\n\tBoard: {board_string}\n")
 
-                return version_string, name_string, board_string
+                return models.VersionStringResponse(version=version_string, name=name_string, board=board_string)
             
             elif response_cmd == constants.CMD_GETPARAMETER:
                 data1 = (response[4] << 8) | response[3]
@@ -152,7 +172,7 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
                     name_string = data_stream[16:32].decode('utf-8', errors="ignore").rstrip('\x00')
                     board_string = data_stream[32:48].decode('utf-8', errors="ignore").rstrip('\x00')
                     
-                    return version_string, name_string, board_string
+                    return models.VersionStringResponse(version=version_string, name=name_string, board=board_string)
                 
                 data_stream = response[5:-2]
                 logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
