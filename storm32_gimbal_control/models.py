@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, Flag, auto
 
 @dataclass
 class VersionResponse:
@@ -45,4 +45,20 @@ class PanModeSetting(Enum):
     SETTING_1 = 0x01
     SETTING_2 = 0x02
     SETTING_3 = 0x03
-    
+
+class SetAngleFlags(Flag):
+    PITCH_LIMITED = 0x01
+    ROLL_LIMITED = 0x02
+    YAW_LIMITED = 0x04
+
+    @classmethod
+    def from_axes(cls, pitch: bool, roll: bool, yaw: bool):
+        """Create a flag value based on which axes should be limited."""
+        flag = cls(0)
+        if pitch:
+            flag |= cls.PITCH_LIMITED
+        if roll:
+            flag |= cls.ROLL_LIMITED
+        if yaw:
+            flag |= cls.YAW_LIMITED
+        return flag
