@@ -10,6 +10,7 @@ ACK_CODES = {
     150: "SERIALRCCMD_ACK_ERR_TIMEOUT",
     151: "SERIALRCCMD_ACK_ERR_CRC",
     152: "SERIALRCCMD_ACK_ERR_PAYLOADLEN",
+    153: "UNKNOWN" # This is not in the official documentation
 }
 Bitmasks = namedtuple("Bitmasks", [
     "LIVEDATA_STATUS", "LIVEDATA_TIMES", "LIVEDATA_IMU1GYRO", "LIVEDATA_IMU1ACC",
