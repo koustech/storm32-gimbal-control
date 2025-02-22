@@ -6,24 +6,37 @@ import logging
 from typing import Optional, Union
 
 logger_serial = logging.getLogger("LoggerSerial")
-logger_serial.setLevel(logging.INFO)
-logger_serial.propagate = False
-
-console_handler_serial = logging.StreamHandler()
-console_formatter_serial = logging.Formatter("%(asctime)s - %(levelname)s - Serial data: %(message)s")
-console_handler_serial.setFormatter(console_formatter_serial)
-
-logger_serial.addHandler(console_handler_serial)
-
 logger_response = logging.getLogger("LoggerResponse")
-logger_response.setLevel(logging.INFO)
+
+logger_serial.setLevel(logging.WARNING)
+logger_response.setLevel(logging.WARNING)
+
+logger_serial.propagate = False
 logger_response.propagate = False
 
+console_handler_serial = logging.StreamHandler()
 console_handler_response = logging.StreamHandler()
+
+console_formatter_serial = logging.Formatter("%(asctime)s - %(levelname)s - Serial data: %(message)s")
 console_formatter_response = logging.Formatter('%(asctime)s - %(name)s - { %(message)s }')
+
+console_handler_serial.setFormatter(console_formatter_serial)
 console_handler_response.setFormatter(console_formatter_response)
 
+logger_serial.addHandler(console_handler_serial)
 logger_response.addHandler(console_handler_response)
+
+def configure_logging(enable: bool = True, level=logging.INFO):
+    """
+    Enables or disables logging for serial and response loggers.
+    
+    Args:
+        enable (bool): If True, enables logging. If False, disables it.
+        level (int): Logging level (e.g., logging.DEBUG, logging.INFO, logging.WARNING).
+    """
+    log_level = level if enable else logging.WARNING
+    logger_serial.setLevel(log_level)
+    logger_response.setLevel(log_level)
 
 def calculate_crc(data):
     crc = 0xFFFF 
