@@ -42,7 +42,7 @@ def degrees_to_value(degrees):
 
     return int((degrees + 90) * (2300 - 700) / 180 + 700)
 
-def send_command(serial_port: serial.Serial, command: int, data: list[int], expected_length: int) -> Optional[bytearray]:
+def send_command(serial_port: serial.Serial, command: int, data: list[int]) -> Optional[bytearray]:
     """
     Sends a command packet and reads the response.
 
@@ -85,53 +85,67 @@ def send_command(serial_port: serial.Serial, command: int, data: list[int], expe
     return response[3:-2]
     """
     
-def read_from_serial(serial_port: serial.Serial):
-    while True:
-        response = serial_port.readline()
-        
-        if response:
-            hex_data = ' '.join(f'{byte:02X}' for byte in response)
-            logger_serial.info(hex_data)
+def read_from_serial(serial_port: serial.Serial, expected_length: int):
+    response = serial_port.read(expected_length)
+    
+    if response:
+        hex_data = ' '.join(f'{byte:02X}' for byte in response)
+        logger_serial.info(hex_data)
 
-            start_sign, packet_length, response_cmd = response[:3]
+        start_sign, packet_length, response_cmd = response[:3]
 
-            if start_sign == constants.STARTSIGNS.OUTGOING:
-                if response_cmd == constants.CMD_GETVERSION:
-                    data1 = (response[4] << 8) | response[3]
-                    data2 = (response[6] << 8) | response[5]
-                    data3 = (response[8] << 8) | response[7]
+        if start_sign == constants.STARTSIGNS.OUTGOING:
+            if response_cmd == constants.CMD_GETVERSION:
+                data1 = (response[4] << 8) | response[3]
+                data2 = (response[6] << 8) | response[5]
+                data3 = (response[8] << 8) | response[7]
 
-                    logger_response.info(f"\nGETVERSION RESPONSE:\n\tfirmware version:{data1}\n\tsetup layout version: {data2}\n\tboard capabilities value: {data3}")
+                logger_response.info(f"\nGETVERSION RESPONSE:\n\tfirmware version:{data1}\n\tsetup layout version: {data2}\n\tboard capabilities value: {data3}")
                 
-                elif response_cmd == constants.CMD_GETVERSIONSTR:
-                    data_stream = response[3:-2]
+                return data1, data2, data3
+            
+            elif response_cmd == constants.CMD_GETVERSIONSTR:
+                data_stream = response[3:-2]
 
+                version_string = data_stream[:16].decode('utf-8', errors="ignore").rstrip('\x00')
+                name_string = data_stream[16:32].decode('utf-8', errors="ignore").rstrip('\x00')
+                board_string = data_stream[32:48].decode('utf-8', errors="ignore").rstrip('\x00')
+
+                logger_response.info(f"\nGETVERSIONSTR RESPONSE:\n\tVersion: {version_string}\n\tName: {name_string}\n\tBoard: {board_string}\n")
+
+                return version_string, name_string, board_string
+            
+            elif response_cmd == constants.CMD_GETPARAMETER:
+                data1 = (response[4] << 8) | response[3]
+                data2 = (response[6] << 8) | response[5]
+                
+                logger_response.info(f"\nGETPARAMETER RESPONSE:\n\tparameter number: {data1}\n\tparameter value: {data2}\n")
+            
+            elif response_cmd == constants.CMD_GETDATA:
+                type_byte = response[3]
+                
+                # GETDATA can't be 0x76 but GETVERSIONSTR returns with 0x76 for some reason
+                if type_byte == 0x76:
+                    data_stream = response[3:-2]
+                    logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
+                    
                     version_string = data_stream[:16].decode('utf-8', errors="ignore").rstrip('\x00')
                     name_string = data_stream[16:32].decode('utf-8', errors="ignore").rstrip('\x00')
                     board_string = data_stream[32:48].decode('utf-8', errors="ignore").rstrip('\x00')
-
-                    logger_response.info(f"\nGETVERSIONSTR RESPONSE:\n\tVersion: {version_string}\n\tName: {name_string}\n\tBoard: {board_string}\n")
-
-                elif response_cmd == constants.CMD_GETPARAMETER:
-                    data1 = (response[4] << 8) | response[3]
-                    data2 = (response[6] << 8) | response[5]
                     
-                    logger_response.info(f"\nGETPARAMETER RESPONSE:\n\tparameter number: {data1}\n\tparameter value: {data2}\n")
+                    return version_string, name_string, board_string
                 
-                elif response_cmd == constants.CMD_GETDATA:
-                    type_byte = response[3]
-                    data_stream = response[5:-2].decode('utf-8', errors="ignore").rstrip('\x00')
-                    
-                    logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
-                    
-                elif response_cmd == constants.CMD_GETDATAFIELDS:
-                    bitmask = (response[4] << 8) | response[3]
-                    data_stream = response[5:-2].decode('utf-8', errors="ignore").rstrip('\x00')
-
-                    logger_response.info(f"\nGETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask}\n\tdatastream: {data_stream}\n")
+                data_stream = response[5:-2]
+                logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
                 
-                elif response_cmd == constants.CMD_ACK:
-                    data = response[3]
-                    
-                    logger_response.info(f"\nACK RESPONSE:\n\tdata: {constants.ACK_CODES[data]}\n")
-                    
+            elif response_cmd == constants.CMD_GETDATAFIELDS:
+                bitmask = (response[4] << 8) | response[3]
+                data_stream = response[5:-2].decode('utf-8', errors="ignore").rstrip('\x00')
+
+                logger_response.info(f"\nGETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask}\n\tdatastream: {data_stream}\n")
+            
+            elif response_cmd == constants.CMD_ACK:
+                data = response[3]
+                
+                logger_response.info(f"\nACK RESPONSE:\n\tdata: {constants.ACK_CODES[data]}\n")
+                

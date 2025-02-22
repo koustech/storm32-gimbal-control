@@ -8,11 +8,13 @@ import struct
 logging.basicConfig(level=logging.INFO)
 
 def get_version(serial_port: serial.Serial) -> models.VersionResponse:
-    utils.send_command(serial_port, constants.CMD_GETVERSION, [], 11)
+    utils.send_command(serial_port, constants.CMD_GETVERSION, [])
+    return utils.read_from_serial(serial_port, 11)
     
 def get_version_str(serial_port: serial.Serial) -> models.VersionStringResponse:
-    utils.send_command(serial_port, constants.CMD_GETVERSIONSTR, [], 53)
-
+    utils.send_command(serial_port, constants.CMD_GETVERSIONSTR, [])
+    print(utils.read_from_serial(serial_port, 5+16*3))
+    
 def get_parameter(serial_port: serial.Serial, param_id: int) -> int:
     if not (0 <= param_id <= 65535):
         raise ValueError("Parameter ID must be between 0 and 65535.")
