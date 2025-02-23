@@ -135,6 +135,27 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
         
         return constants.ACK_CODES[data]
 
+    if response_cmd == constants.CMD_GETDATAFIELDS:
+        response = serial_port.read(packet_length)
+
+        if len(response) < packet_length:
+            raise ValueError(f"Incomplete response. Expected {packet_length}, but got {len(response)}")
+
+        bitmask = (response[1] << 8) | response[0]
+        
+        data_stream = response[2:-2]
+
+        logger_response.info(f"\nGETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask:#06x}\n\tdata stream: {data_stream.hex()}\n")
+
+        # Unpack data properly if they are 16-bit signed integers
+        if len(data_stream) % 2 == 0:
+            unpacked_data = struct.unpack(f"<{len(data_stream) // 2}h", data_stream)
+        else:
+            unpacked_data = data_stream  # Keep as raw bytes if unpacking fails
+
+        return bitmask, unpacked_data
+
+    
     remaining_length = expected_length - 3
     remaining_response = serial_port.read(remaining_length)
     response = header + remaining_response
@@ -199,10 +220,4 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
         logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
 
         return models.DataStreamResponse.from_data_stream(data_stream)
-        
-    elif response_cmd == constants.CMD_GETDATAFIELDS:
-        bitmask = (response[4] << 8) | response[3]
-        data_stream = response[5:-2].decode('utf-8', errors="ignore").rstrip('\x00')
-
-        logger_response.info(f"\nGETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask}\n\tdatastream: {data_stream}\n")
         

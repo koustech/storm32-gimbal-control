@@ -38,7 +38,6 @@ def set_parameter(serial_port: serial.Serial, param_id: int, param_value: int):
     return utils.read_from_serial(serial_port, 6)
 
 def get_data(serial_port: serial.Serial, type_byte: int):
-    # TODO: Change this to read both CMD_ACK and CMD_GETDATA return
     if type_byte != 0:
         raise ValueError("Invalid type_byte! Currently, only type 0 is supported.")
 
@@ -48,11 +47,10 @@ def get_data(serial_port: serial.Serial, type_byte: int):
     
     return utils.read_from_serial(serial_port, 74)
 
-def get_data_fields(serial_port: serial.Serial, bitmask: int) -> tuple:
-    # TODO: this function is not implemented, below is boilerplate code
-    if not (0 <= bitmask <= 0xFFFF):
-        raise ValueError("Bitmask must be a 16-bit integer (0x0000 - 0xFFFF).")
-
+def get_data_fields(serial_port: serial.Serial, bitmask: models.LiveDataFields) -> tuple:
+    if not isinstance(bitmask, models.LiveDataFields):
+        raise ValueError("Invalid bitmask. Use LiveDataFields enum values.")
+    
     data = [bitmask & 0xFF, (bitmask >> 8) & 0xFF]
 
     utils.send_command(serial_port, constants.CMD_GETDATAFIELDS, data)
@@ -67,25 +65,25 @@ def set_axis(serial_port: serial.Serial, command: int, value: int):
     return utils.read_from_serial(serial_port, 6)
 
 def set_pitch(serial_port: serial.Serial, degree: int):
-    set_axis(serial_port, constants.CMD_SETPITCH, degree)
+    return set_axis(serial_port, constants.CMD_SETPITCH, degree)
 
 def set_roll(serial_port: serial.Serial, degree: int):
-    set_axis(serial_port, constants.CMD_SETROLL, degree)
+    return set_axis(serial_port, constants.CMD_SETROLL, degree)
 
 def set_yaw(serial_port: serial.Serial, degree: int):
-    set_axis(serial_port, constants.CMD_SETYAW, degree)
+    return set_axis(serial_port, constants.CMD_SETYAW, degree)
     
 def set_pitch_degree(serial_port: serial.Serial, degree: int):
     value = utils.degrees_to_value(degree)
-    set_axis(serial_port, constants.CMD_SETPITCH, value)
+    return set_axis(serial_port, constants.CMD_SETPITCH, value)
 
 def set_roll_degree(serial_port: serial.Serial, degree: int):
     value = utils.degrees_to_value(degree)
-    set_axis(serial_port, constants.CMD_SETROLL, value)
+    return set_axis(serial_port, constants.CMD_SETROLL, value)
 
 def set_yaw_degree(serial_port: serial.Serial, degree: int):
     value = utils.degrees_to_value(degree)
-    set_axis(serial_port, constants.CMD_SETYAW, value)
+    return set_axis(serial_port, constants.CMD_SETYAW, value)
 
 def set_pan_mode(serial_port: serial.Serial, pan_mode: models.PanMode):
     if not isinstance(pan_mode, models.PanMode):
