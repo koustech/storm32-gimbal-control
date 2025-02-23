@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum, Flag, auto
+from enum import Enum, Flag, IntFlag
 import struct
 
 @dataclass
@@ -129,3 +129,17 @@ class SetAngleFlags(Flag):
         if yaw:
             flag |= cls.YAW_LIMITED
         return flag
+
+class LiveDataFields(IntFlag):
+    STATUS = 0x0001
+    TIMES = 0x0001  # Same value as STATUS, needs clarification
+    IMU1_GYRO = 0x0004
+    IMU1_ACC = 0x0008
+    IMU1_R = 0x0010
+    IMU1_ANGLES = 0x0020
+    PID_CONTROL = 0x0040
+    INPUTS = 0x0080
+    IMU2_ANGLES = 0x0100
+    MAG_ANGLES = 0x0200
+    STORM32_LINK = 0x0400
+    IMU_ACC_CONFIDENCE = 0x0800
