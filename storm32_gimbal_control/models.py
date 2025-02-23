@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, Flag, auto
+import struct
 
 @dataclass
 class VersionResponse:
@@ -12,6 +13,72 @@ class VersionStringResponse:
     version: str
     name: str
     board: str
+
+@dataclass
+class DataStreamResponse:
+    state: int
+    status: int
+    status2: int
+    i2c_errors: int
+    lipo_voltage: int
+    timestamp: int
+    cycle_time: int
+    imu1_gyro: tuple
+    imu1_acc: tuple
+    imu1_rotation: tuple
+    imu1_pitch: float
+    imu1_roll: float
+    imu1_yaw: float
+    pid_pitch: float
+    pid_roll: float
+    pid_yaw: float
+    input_pitch: int
+    input_roll: int
+    input_yaw: int
+    imu2_pitch: float
+    imu2_roll: float
+    imu2_yaw: float
+    mag_yaw: float
+    mag_pitch: float
+    imu_acc_confidence: float
+    extra_function_input: int
+
+    @classmethod
+    def from_data_stream(cls, data_stream):
+        """Parses a 74-byte data stream and returns a DataStreamResponse object."""
+        if len(data_stream) != 64:
+            raise ValueError(f"Invalid data length: expected 74 bytes, got {len(data_stream)}")
+
+        values = struct.unpack("<32h", bytes(data_stream[:64]))
+
+        return cls(
+            state=values[0],
+            status=values[1],
+            status2=values[2],
+            i2c_errors=values[3],
+            lipo_voltage=values[4],
+            timestamp=values[5],
+            cycle_time=values[6],
+            imu1_gyro=values[7:10],  # (gx, gy, gz)
+            imu1_acc=values[10:13],  # (ax, ay, az)
+            imu1_rotation=values[13:16],  # (Rx, Ry, Rz)
+            imu1_pitch=values[16] / 100.0,
+            imu1_roll=values[17] / 100.0,
+            imu1_yaw=values[18] / 100.0,
+            pid_pitch=values[19] / 100.0,
+            pid_roll=values[20] / 100.0,
+            pid_yaw=values[21] / 100.0,
+            input_pitch=values[22],
+            input_roll=values[23],
+            input_yaw=values[24],
+            imu2_pitch=values[25] / 100.0,
+            imu2_roll=values[26] / 100.0,
+            imu2_yaw=values[27] / 100.0,
+            mag_yaw=values[28] / 100.0,
+            mag_pitch=values[29] / 100.0,
+            imu_acc_confidence=values[30] / 10000.0,
+            extra_function_input=values[31],
+        )
 
 class PanMode(Enum):
     OFF = 0

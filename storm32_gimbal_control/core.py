@@ -46,7 +46,7 @@ def get_data(serial_port: serial.Serial, type_byte: int):
 
     utils.send_command(serial_port, constants.CMD_GETDATA, data)
     
-    return utils.read_from_serial(serial_port, 6)
+    return utils.read_from_serial(serial_port, 74)
 
 def get_data_fields(serial_port: serial.Serial, bitmask: int) -> tuple:
     # TODO: this function is not implemented, below is boilerplate code
