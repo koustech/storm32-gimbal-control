@@ -10,4 +10,7 @@ from storm32_gimbal_control import utils
 
 serial_port = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
 
-core.get_data(serial_port, 0)
+#utils.configure_logging(True)
+
+data = core.get_data(serial_port, 0)
+print(data.state)

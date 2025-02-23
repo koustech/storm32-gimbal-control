@@ -3,8 +3,9 @@ from storm32_gimbal_control import utils
 from storm32_gimbal_control import constants
 from storm32_gimbal_control import models
 from storm32_gimbal_control import exceptions
-import logging
 from typing import Optional, Union
+import logging
+import struct
 
 logger_serial = logging.getLogger("LoggerSerial")
 logger_response = logging.getLogger("LoggerResponse")
@@ -160,6 +161,7 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
                 
                 logger_response.info(f"\nGETPARAMETER RESPONSE:\n\tparameter number: {data1}\n\tparameter value: {data2}\n")
             
+                return data2
             elif response_cmd == constants.CMD_GETDATA:
                 type_byte = response[3]
                 
@@ -173,11 +175,12 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
                     board_string = data_stream[32:48].decode('utf-8', errors="ignore").rstrip('\x00')
                     
                     return models.VersionStringResponse(version=version_string, name=name_string, board=board_string)
-                
+
+                # Stream starts from 5 because msg structure is 0xFB 0x4A 0x05 type-byte 0x00 ...
                 data_stream = response[5:-2]
                 logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
-                
-                return type_byte, data_stream
+
+                return models.DataStreamResponse.from_data_stream(data_stream)
                 
             elif response_cmd == constants.CMD_GETDATAFIELDS:
                 bitmask = (response[4] << 8) | response[3]
