@@ -3,8 +3,9 @@ from storm32_gimbal_control import utils
 from storm32_gimbal_control import constants
 from storm32_gimbal_control import models
 from storm32_gimbal_control import exceptions
-import logging
 from typing import Optional, Union
+import logging
+import struct
 
 logger_serial = logging.getLogger("LoggerSerial")
 logger_response = logging.getLogger("LoggerResponse")
@@ -110,78 +111,113 @@ def send_command(serial_port: serial.Serial, command: int, data: list[int]) -> O
     serial_port.write(bytearray(packet))
     
 def read_from_serial(serial_port: serial.Serial, expected_length: int):
-    response = serial_port.read(expected_length)
+    header = serial_port.read(3)
     
-    if response:
-        hex_data = ' '.join(f'{byte:02X}' for byte in response)
-        logger_serial.info(hex_data)
+    if len(header) < 3:
+        raise ValueError("Incomplete response header received")
 
-        start_sign, packet_length, response_cmd = response[:3]
+    start_sign, packet_length, response_cmd = header
+
+    if start_sign != constants.STARTSIGNS.OUTGOING:
+        raise ValueError("Invalid start sign received")
+
+    if response_cmd == constants.CMD_ACK:
+        response = serial_port.read(3)
         
-        # CRC fails for some reason but the response is correct
-        #if not validate_crc(response):
-        #    logger_response.warning("CRC validation failed!")
-        #    raise exceptions.CrcError("CRC validation failed!")
-        #    return None
+        if len(response) < 3:
+            raise ValueError("Incomplete ACK response received")
         
-        if start_sign == constants.STARTSIGNS.OUTGOING:
-            if response_cmd == constants.CMD_ACK:
-                data = response[3]
-                
-                logger_response.info(f"\nACK RESPONSE:\n\tdata: {constants.ACK_CODES[data]}\n")
-                if constants.ACK_CODES[data] != "SERIALRCCMD_ACK_OK":
-                    raise exceptions.AckError(constants.ACK_CODES[data])
-                
-                return constants.ACK_CODES[data]
-                
-            elif response_cmd == constants.CMD_GETVERSION:
-                data1 = (response[4] << 8) | response[3]
-                data2 = (response[6] << 8) | response[5]
-                data3 = (response[8] << 8) | response[7]
+        data = response[0]
+        
+        logger_response.info(f"\nACK RESPONSE:\n\tdata: {constants.ACK_CODES[data]}\n")
+        if constants.ACK_CODES[data] != "SERIALRCCMD_ACK_OK":
+            raise exceptions.AckError(constants.ACK_CODES[data])
+        
+        return constants.ACK_CODES[data]
 
-                logger_response.info(f"\nGETVERSION RESPONSE:\n\tfirmware version:{data1}\n\tsetup layout version: {data2}\n\tboard capabilities value: {data3}")
-                
-                return models.VersionResponse(firmware_version=data1, setup_layout_version=data2, board_capabilities=data3)
+    if response_cmd == constants.CMD_GETDATAFIELDS:
+        response = serial_port.read(packet_length)
+
+        if len(response) < packet_length:
+            raise ValueError(f"Incomplete response. Expected {packet_length}, but got {len(response)}")
+
+        bitmask = (response[1] << 8) | response[0]
+        
+        data_stream = response[2:-2]
+
+        logger_response.info(f"\nGETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask:#06x}\n\tdata stream: {data_stream.hex()}\n")
+
+        # Unpack data properly if they are 16-bit signed integers
+        if len(data_stream) % 2 == 0:
+            unpacked_data = struct.unpack(f"<{len(data_stream) // 2}h", data_stream)
+        else:
+            unpacked_data = data_stream  # Keep as raw bytes if unpacking fails
+
+        return bitmask, unpacked_data
+
+    
+    remaining_length = expected_length - 3
+    remaining_response = serial_port.read(remaining_length)
+    response = header + remaining_response
+
+    if len(response) < expected_length:
+        logger_response.warning(f"Expected {expected_length} bytes, but got {len(response)}. Data may be incomplete.")
+        
+    hex_data = ' '.join(f'{byte:02X}' for byte in response)
+    logger_serial.info(hex_data)
+
+    start_sign, packet_length, response_cmd = response[:3]
+
+    # CRC fails for some reason but the response is correct
+    #if not validate_crc(response):
+    #    logger_response.warning("CRC validation failed!")
+    #    raise exceptions.CrcError("CRC validation failed!")
+    #    return None
+
+    if response_cmd == constants.CMD_GETVERSION:
+        data1 = (response[4] << 8) | response[3]
+        data2 = (response[6] << 8) | response[5]
+        data3 = (response[8] << 8) | response[7]
+
+        logger_response.info(f"\nGETVERSION RESPONSE:\n\tfirmware version:{data1}\n\tsetup layout version: {data2}\n\tboard capabilities value: {data3}")
+        
+        return models.VersionResponse(firmware_version=data1, setup_layout_version=data2, board_capabilities=data3)
+    
+    elif response_cmd == constants.CMD_GETVERSIONSTR:
+        data_stream = response[3:-2]
+
+        version_string = data_stream[:16].decode('utf-8', errors="ignore").rstrip('\x00')
+        name_string = data_stream[16:32].decode('utf-8', errors="ignore").rstrip('\x00')
+        board_string = data_stream[32:48].decode('utf-8', errors="ignore").rstrip('\x00')
+
+        logger_response.info(f"\nGETVERSIONSTR RESPONSE:\n\tVersion: {version_string}\n\tName: {name_string}\n\tBoard: {board_string}\n")
+
+        return models.VersionStringResponse(version=version_string, name=name_string, board=board_string)
+    
+    elif response_cmd == constants.CMD_GETPARAMETER:
+        data1 = (response[4] << 8) | response[3]
+        data2 = (response[6] << 8) | response[5]
+        
+        logger_response.info(f"\nGETPARAMETER RESPONSE:\n\tparameter number: {data1}\n\tparameter value: {data2}\n")
+    
+        return data2
+    elif response_cmd == constants.CMD_GETDATA:
+        type_byte = response[3]
+        
+        # GETDATA can't be 0x76 but GETVERSIONSTR returns GETDATA with 0x76 for some reason
+        if type_byte == 0x76:
+            data_stream = response[3:-2]
+            logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
             
-            elif response_cmd == constants.CMD_GETVERSIONSTR:
-                data_stream = response[3:-2]
-
-                version_string = data_stream[:16].decode('utf-8', errors="ignore").rstrip('\x00')
-                name_string = data_stream[16:32].decode('utf-8', errors="ignore").rstrip('\x00')
-                board_string = data_stream[32:48].decode('utf-8', errors="ignore").rstrip('\x00')
-
-                logger_response.info(f"\nGETVERSIONSTR RESPONSE:\n\tVersion: {version_string}\n\tName: {name_string}\n\tBoard: {board_string}\n")
-
-                return models.VersionStringResponse(version=version_string, name=name_string, board=board_string)
+            version_string = data_stream[:16].decode('utf-8', errors="ignore").rstrip('\x00')
+            name_string = data_stream[16:32].decode('utf-8', errors="ignore").rstrip('\x00')
+            board_string = data_stream[32:48].decode('utf-8', errors="ignore").rstrip('\x00')
             
-            elif response_cmd == constants.CMD_GETPARAMETER:
-                data1 = (response[4] << 8) | response[3]
-                data2 = (response[6] << 8) | response[5]
-                
-                logger_response.info(f"\nGETPARAMETER RESPONSE:\n\tparameter number: {data1}\n\tparameter value: {data2}\n")
-            
-            elif response_cmd == constants.CMD_GETDATA:
-                type_byte = response[3]
-                
-                # GETDATA can't be 0x76 but GETVERSIONSTR returns GETDATA with 0x76 for some reason
-                if type_byte == 0x76:
-                    data_stream = response[3:-2]
-                    logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
-                    
-                    version_string = data_stream[:16].decode('utf-8', errors="ignore").rstrip('\x00')
-                    name_string = data_stream[16:32].decode('utf-8', errors="ignore").rstrip('\x00')
-                    board_string = data_stream[32:48].decode('utf-8', errors="ignore").rstrip('\x00')
-                    
-                    return models.VersionStringResponse(version=version_string, name=name_string, board=board_string)
-                
-                data_stream = response[5:-2]
-                logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
-                
-                return type_byte, data_stream
-                
-            elif response_cmd == constants.CMD_GETDATAFIELDS:
-                bitmask = (response[4] << 8) | response[3]
-                data_stream = response[5:-2].decode('utf-8', errors="ignore").rstrip('\x00')
+            return models.VersionStringResponse(version=version_string, name=name_string, board=board_string)
 
-                logger_response.info(f"\nGETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask}\n\tdatastream: {data_stream}\n")
-                
+        # Stream starts from 5 because msg structure is 0xFB 0x4A 0x05 type-byte 0x00 ...
+        data_stream = response[5:-2]
+        logger_response.info(f"\nGETDATA RESPONSE:\n\ttype byte: {type_byte}\n\tdatastream: {data_stream}\n")
+
+        return models.DataStreamResponse.from_data_stream(data_stream)
+        
