@@ -64,25 +64,22 @@ def set_axis(serial_port: serial.Serial, command: int, value: int):
     
     return utils.read_from_serial(serial_port, 6)
 
-def set_pitch(serial_port: serial.Serial, degree: int):
-    return set_axis(serial_port, constants.CMD_SETPITCH, degree)
-
-def set_roll(serial_port: serial.Serial, degree: int):
-    return set_axis(serial_port, constants.CMD_SETROLL, degree)
-
-def set_yaw(serial_port: serial.Serial, degree: int):
-    return set_axis(serial_port, constants.CMD_SETYAW, degree)
+def set_pitch(serial_port: serial.Serial, value : int):
+    if not 700 <= value <= 2300 and not value == 0:
+        raise ValueError("Invalid pitch value. Must be 0 to recenter or between 700 and 2300.")
     
-def set_pitch_degree(serial_port: serial.Serial, degree: int):
-    value = utils.degrees_to_value(degree)
     return set_axis(serial_port, constants.CMD_SETPITCH, value)
 
-def set_roll_degree(serial_port: serial.Serial, degree: int):
-    value = utils.degrees_to_value(degree)
+def set_roll(serial_port: serial.Serial, value: int):
+    if not 700 <= value <= 2300 and not value == 0:
+        raise ValueError("Invalid pitch value. Must be 0 to recenter or between 700 and 2300.")
+    
     return set_axis(serial_port, constants.CMD_SETROLL, value)
 
-def set_yaw_degree(serial_port: serial.Serial, degree: int):
-    value = utils.degrees_to_value(degree)
+def set_yaw(serial_port: serial.Serial, value: int):
+    if not 700 <= value <= 2300 and not value == 0:
+        raise ValueError("Invalid pitch value. Must be 0 to recenter or between 700 and 2300.")
+    
     return set_axis(serial_port, constants.CMD_SETYAW, value)
 
 def set_pan_mode(serial_port: serial.Serial, pan_mode: models.PanMode):

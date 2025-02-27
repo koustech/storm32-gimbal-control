@@ -82,12 +82,6 @@ def validate_crc(data):
     else:
         return False
 
-def degrees_to_value(degrees):
-    if -90 <= degrees <= 90:
-        raise ValueError("The degree must be in between values -90 and 90!")
-
-    return int((degrees + 90) * (2300 - 700) / 180 + 700)
-
 def send_command(serial_port: serial.Serial, command: int, data: list[int]) -> Optional[bytearray]:
     """
     Sends a command packet and reads the response.
