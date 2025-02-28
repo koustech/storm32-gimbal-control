@@ -102,6 +102,9 @@ def send_command(serial_port: serial.Serial, command: int, data: list[int]) -> O
     crc = utils.calculate_crc(packet)
     packet += [crc & 0xFF, (crc >> 8) & 0xFF]
 
+    hex_data = ' '.join(f'{byte:02X}' for byte in bytearray(packet))
+    logger_serial.info(hex_data)
+    
     serial_port.write(bytearray(packet))
     
 def read_from_serial(serial_port: serial.Serial, expected_length: int):
@@ -117,12 +120,15 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
 
     if response_cmd == constants.CMD_ACK:
         response = serial_port.read(3)
+        response = header + response
         
         if len(response) < 3:
             raise ValueError("Incomplete ACK response received")
         
-        data = response[0]
+        data = response[3]
         
+        hex_data = ' '.join(f'{byte:02X}' for byte in response)
+        logger_serial.info(hex_data)
         logger_response.info(f"\nACK RESPONSE:\n\tdata: {constants.ACK_CODES[data]}\n")
         if constants.ACK_CODES[data] != "SERIALRCCMD_ACK_OK":
             raise exceptions.AckError(constants.ACK_CODES[data])
@@ -131,6 +137,7 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
 
     if response_cmd == constants.CMD_GETDATAFIELDS:
         response = serial_port.read(packet_length)
+        response = header + response
 
         if len(response) < packet_length:
             raise ValueError(f"Incomplete response. Expected {packet_length}, but got {len(response)}")
@@ -138,7 +145,9 @@ def read_from_serial(serial_port: serial.Serial, expected_length: int):
         bitmask = (response[1] << 8) | response[0]
         
         data_stream = response[2:-2]
-
+        
+        hex_data = ' '.join(f'{byte:02X}' for byte in response)
+        logger_serial.info(hex_data)
         logger_response.info(f"\nGETDATAFIELDS RESPONSE:\n\tbitmask: {bitmask:#06x}\n\tdata stream: {data_stream.hex()}\n")
 
         # Unpack data properly if they are 16-bit signed integers
