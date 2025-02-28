@@ -30,17 +30,22 @@ logger_response.addHandler(console_handler_response)
 
 def configure_logging(enable: bool = True, level=logging.INFO):
     """
-    Enables or disables logging for serial and response loggers.
+    Configures the logging level for the serial and response loggers.
     
-    Args:
-        enable (bool): If True, enables logging. If False, disables it.
-        level (int): Logging level (e.g., logging.DEBUG, logging.INFO, logging.WARNING).
+    :param enable: Enable or disable logging.
+    :param level: Logging level.
     """
     log_level = level if enable else logging.WARNING
     logger_serial.setLevel(log_level)
     logger_response.setLevel(log_level)
 
 def calculate_crc(data):
+    """
+    CRC calculation function.
+    
+    :param data: Data to calculate CRC for.
+    :return: Calculated CRC value.
+    """
     crc = 0xFFFF 
     for byte in data:
         crc ^= byte
@@ -52,6 +57,12 @@ def calculate_crc(data):
     return crc & 0xFFFF
 
 def calculate_crc_ccitt(data):
+    """
+    CRC calculation function using CCITT polynomial.
+    
+    :param data: Data to calculate CRC for.
+    :return: Calculated CRC value.
+    """
     crc = 0xFFFF  # CCITT uses 0xFFFF as initial value
     for byte in data:
         crc ^= byte << 8
@@ -64,10 +75,10 @@ def calculate_crc_ccitt(data):
 
 def validate_crc(data):
     """
-    CRC validation function.
-    - data: Incoming data including CRC.
-
-    Data format: [data1, data2, ..., crc_low, crc_high]
+    Validates the CRC of the data.
+    
+    :param data: Data to validate CRC for.
+    :return: True if CRC is valid, else False.
     """
     if len(data) < 3:
         raise ValueError("Data is too short!")
@@ -84,18 +95,13 @@ def validate_crc(data):
 
 def send_command(serial_port: serial.Serial, command: int, data: list[int]) -> Optional[bytearray]:
     """
-    Sends a command packet and reads the response.
-
-    Args:
-        serial_port (serial.Serial): The serial port object.
-        command (int): Command ID.
-        data (list[int]): Data bytes.
-        expected_length (int): Expected response length.
-
-    Returns:
-        Optional[bytearray]: The response data (excluding header and CRC) if successful, else None.
+    Sends a command to the serial port.
+    
+    :param serial_port: Serial port object.
+    :param command: Command to send.
+    :param data: Data to send.
+    :return: Response data if any.
     """
-
     header = [constants.STARTSIGNS.INCOMING, len(data)]
     packet = header + [command] + data
 
@@ -108,6 +114,13 @@ def send_command(serial_port: serial.Serial, command: int, data: list[int]) -> O
     serial_port.write(bytearray(packet))
     
 def read_from_serial(serial_port: serial.Serial, expected_length: int):
+    """
+    Reads data from the serial port and processes it.
+    
+    :param serial_port: Serial port object.
+    :param expected_length: Expected length of the response.
+    :return: Processed response data.
+    """
     header = serial_port.read(3)
     
     if len(header) < 3:
