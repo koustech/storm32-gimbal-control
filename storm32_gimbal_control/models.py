@@ -4,18 +4,21 @@ import struct
 
 @dataclass
 class VersionResponse:
+    """Response to the GETVERSION command."""
     firmware_version: int
     setup_layout_version: int
     board_capabilities: int
 
 @dataclass
 class VersionStringResponse:
+    """Response to the GETVERSIONSTR command."""
     version: str
     name: str
     board: str
 
 @dataclass
 class DataStreamResponse:
+    """Response to the GETDATA command."""
     state: int
     status: int
     status2: int
@@ -81,6 +84,7 @@ class DataStreamResponse:
         )
 
 class PanMode(Enum):
+    """Pan mode settings."""
     OFF = 0
     HOLD_HOLD_PAN = 1
     HOLD_HOLD_HOLD = 2
@@ -90,10 +94,12 @@ class PanMode(Enum):
     HOLD_PAN_PAN = 6
 
 class StandBySwitch(Enum):
+    """Standby switch settings."""
     OFF = 0
     ON = 1
     
 class DoCameraMode(Enum):
+    """Camera mode settings."""
     OFF = 0
     IRSHUTTER = 1
     IRSHUTTERDELAYED = 2
@@ -101,6 +107,7 @@ class DoCameraMode(Enum):
     IRVIDEOOFF = 4
     
 class ScriptControlMode(Enum):
+    """Script control mode settings."""
     OFF = 0
     CASE_DEFAULT = 1
     CASE_1 = 2
@@ -108,12 +115,14 @@ class ScriptControlMode(Enum):
     CASE_3 = 4
     
 class PanModeSetting(Enum):
+    """Pan mode settings."""
     DEFAULT_SETTING = 0x00
     SETTING_1 = 0x01
     SETTING_2 = 0x02
     SETTING_3 = 0x03
 
 class SetAngleFlags(Flag):
+    """Flags for setting angles."""
     PITCH_LIMITED = 0x01
     ROLL_LIMITED = 0x02
     YAW_LIMITED = 0x04
@@ -131,6 +140,7 @@ class SetAngleFlags(Flag):
         return flag
 
 class LiveDataFields(IntFlag):
+    """Data fields that can be requested in the GETDATAFIELDS command."""
     STATUS = 0x0001
     TIMES = 0x0001  # Same value as STATUS, needs clarification
     IMU1_GYRO = 0x0004
