@@ -1,3 +1,4 @@
 __pycache__
 storm32_gimbal_control/__pycache__
 *.egg-info
+venv/
